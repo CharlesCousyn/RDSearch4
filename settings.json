@@ -1,0 +1,14 @@
+{
+  "ResultsFolder": "C:/Users/CharlesCOUSYN/Downloads/Test/",
+  "URL_Rare_Diseases": "http://www.orphadata.org/data/export/en_product1.json",
+  "URL_SymptomsList": "http://purl.obolibrary.org/obo/hp.obo",
+  "URL_RealSymptomsByDisease": "http://www.orphadata.org/data/xml/en_product4_HPO.xml",
+  "ParametersAPI": "&api_key=5ed9a0500dd91e18d27009f9e7160d7a7008&tool=RDSearch&email=charles.cousyn1@uqac.ca",
+  "API_Key": "5ed9a0500dd91e18d27009f9e7160d7a7008",
+  "Tool": "RDSearch",
+  "Email": "charles.cousyn1@uqac.ca",
+  "BatchSizeDiseases": 150,
+  "BatchSizePMC": 1000,
+  "BatchSizeTextMining": 20,
+  "MaxNumberSymptoms": 100
+}
