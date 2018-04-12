@@ -70,7 +70,7 @@ namespace CrawlerOrphanet
         }
 
         //Apply to one disease only
-        public DiseaseData GetPredictionDataFromPublicationsOfOneDisease(List<Publication> publications, Disease disease)
+        public DiseaseData GetPredictionDataCountFromPublicationsOfOneDisease(List<Publication> publications, Disease disease)
         {
             DiseaseData PredictionData = new DiseaseData(disease, 
                 new RelatedEntities(
@@ -92,7 +92,7 @@ namespace CrawlerOrphanet
                 text = text.ToLower();
 
                 //NAMED ENTITY RECOGNITION
-                Chunking chunking = chunkerHMM.chunk(text);
+                Chunking chunking = chunker.chunk(text);
                 CharSequence cs = chunking.charSequence();
                 Set chunkSet = chunking.chunkSet();
                 Iterator iterator = chunkSet.iterator();
@@ -131,29 +131,11 @@ namespace CrawlerOrphanet
 
             }
             
-            //Symptom Weight Normalization from 0 to 100
-            for (int i = 0; i < relatedEntities.Count; i++)
-            {
-                //Find Min and Max for Normalization
-                double max = relatedEntities.Max(x => x.Weight);
-                double min = relatedEntities.Min(x => x.Weight);
-
-                //Normalization
-                if (max == min)//If size==1
-                {
-                    if (relatedEntities[i].Weight > 100.0)
-                    {
-                        relatedEntities[i].Weight = 100.0;
-                    }
-                }
-                else
-                {
-                    relatedEntities[i].Weight = 100 * (relatedEntities[i].Weight - min) / (max - min);
-                }
-            }
+            /*
 
             //Sort related entities by descending weight
             PredictionData.RelatedEntities.RelatedEntitiesList.OrderByDescending(x=>x.Weight).ToList();
+
             //Take only a the best symptoms (see config file)
             PredictionData.RelatedEntities.RelatedEntitiesList =
                 PredictionData.RelatedEntities.RelatedEntitiesList
@@ -161,6 +143,7 @@ namespace CrawlerOrphanet
                 .Take(ConfigurationManager.Instance.config.MaxNumberSymptoms)
                 .ToList();
 
+            */
             /*
             ///TEEEEEEEEEEEST
             extractedSymptoms = new List<Symptom>();
@@ -174,6 +157,22 @@ namespace CrawlerOrphanet
             }*/
 
             return PredictionData;
+        }
+
+        //Term i
+        //Disease j
+        public double ToTF_IDF(
+            double ocurrence_i_j, //Times term i appears in publications of disease j
+            double ocurrenceTot_j, //Number of terms in publications of disease j
+            int nbDiseasesTot, //Total number of disease
+            int nbDiseases_i //Number of diseases where the term i has been detected
+            )
+        {
+            double tf = ocurrence_i_j / ocurrenceTot_j;
+
+            double idf = System.Math.Log10(nbDiseasesTot/ nbDiseases_i);
+
+            return tf * idf;
         }
 
         public void GetSymptomsList()
