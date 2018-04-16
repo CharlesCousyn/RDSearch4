@@ -10,7 +10,8 @@ namespace Evaluation
 {
     public class Evaluator
     {
-        public static void Evaluate(DiseasesData PredictionData, DiseasesData RealData, string wantedFileName = "")
+        //TODO Thresold
+        public static void Evaluate(DiseasesData PredictionData, DiseasesData RealData, double threshold = 0.0, string wantedFileName = "")
         {
             //Object to write in JSON
             Results results = new Results();
@@ -19,16 +20,24 @@ namespace Evaluation
             int FP = 0;//FalsePositive general
             int FN = 0;//FalseNegative general
 
+            int NumberOfDiseasesWithKnownPhenotypes = RealData.DiseaseDataList.Count;
+            int NumberOfDiseasesWithPublicationsInPredictionData = PredictionData.DiseaseDataList.Count(x => x.Disease.NumberOfPublications != 0);
+            int NumberOfDiseasesEvaluatedForReal = 0;
+
             //For each existent rare disease
-            foreach(string orphaNumber in PredictionData.DiseaseDataList.Select(x => x?.Disease?.OrphaNumber))
+            foreach (string orphaNumber in PredictionData.DiseaseDataList.Select(x => x?.Disease?.OrphaNumber))
             {
                 //Find THE diseaseData of ONE disease (real and predicted data)
                 DiseaseData RealDiseaseData = RealData.DiseaseDataList.Where(x => x?.Disease?.OrphaNumber == orphaNumber).FirstOrDefault();
-                DiseaseData PredictionDiseaseData = PredictionData.DiseaseDataList.Where(x => x?.Disease?.OrphaNumber == orphaNumber).FirstOrDefault();
+                DiseaseData PredictionDiseaseData = PredictionData.DiseaseDataList.Where(
+                    x => x?.Disease?.OrphaNumber == orphaNumber && 
+                    x.Disease.NumberOfPublications != 0).FirstOrDefault();
 
                 //If we don't find the disease in both dataset, we shoud pass to another disease
                 if(RealDiseaseData != null && PredictionDiseaseData != null)
                 {
+                    NumberOfDiseasesEvaluatedForReal++;//Increase number of diseases evaluated
+
                     int RP_Disease = 0;//RealPositive of one disease
                     int FP_Disease = 0;//FalsePositive of one disease
                     int FN_Disease = 0;//FalseNegative of one disease
@@ -42,16 +51,19 @@ namespace Evaluation
 
                     for (int j = 0; j < PredictionDiseaseData.RelatedEntities.RelatedEntitiesList.Count; j++)
                     {
-                        //Is my predicted related entity is present in the real data?
-                        if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
+                        if (threshold == 0.0 || PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Weight >= threshold)
                         {
-                            RP++;
-                            RP_Disease++;
-                        }
-                        else
-                        {
-                            FP++;
-                            FP_Disease++;
+                            //Is my predicted related entity is present in the real data?
+                            if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
+                            {
+                                RP++;
+                                RP_Disease++;
+                            }
+                            else
+                            {
+                                FP++;
+                                FP_Disease++;
+                            }
                         }
                     }
 
@@ -59,6 +71,7 @@ namespace Evaluation
                     List<string> RelatedEntitiesNamesPred =
                         PredictionDiseaseData
                         .RelatedEntities.RelatedEntitiesList
+                        .Where(entity => threshold == 0.0 || entity.Weight >= threshold)
                         .Select(x => x.Name)
                         .ToList();
                     for (int j = 0; j < RealDiseaseData.RelatedEntities.RelatedEntitiesList.Count; j++)
@@ -124,7 +137,10 @@ namespace Evaluation
 
             //Construct results object
             results.general = new General(
-                DateTime.Now, 
+                DateTime.Now,
+                NumberOfDiseasesWithKnownPhenotypes,
+                NumberOfDiseasesWithPublicationsInPredictionData,
+                NumberOfDiseasesEvaluatedForReal,
                 PredictionData.Type.ToString(), 
                 RP, 
                 FP, 
@@ -155,6 +171,14 @@ namespace Evaluation
 
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
 
+        }
+
+        public static void MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, double minWeight, double maxWeight, double step)
+        {
+            for (double i = minWeight; i <= maxWeight; i+=step)
+            {
+                Evaluate(PredictionData, RealData, i, $"threshold_{i}.json");
+            }
         }
     }
 }

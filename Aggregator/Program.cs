@@ -15,11 +15,11 @@ namespace CrawlerOrphanet
 {
     class Program
     {
-        public static List<List<Publication>> publicationsPerDisease;
+        public static Dictionary<string, List<Publication>> publicationsPerDisease;
         static void Main(string[] args)
         {
             //Environnement variables
-            Environment.SetEnvironmentVariable("RD_AGGREGATOR_SETTINGS", @"C:\Users\CharlesCOUSYN\source\repos\Aggregator\settings.json");
+            Environment.SetEnvironmentVariable("RD_AGGREGATOR_SETTINGS", @"C:\Users\Psycho\Source\Repos\RDSearch4\settings.json");
             var path = Environment.GetEnvironmentVariable("RD_AGGREGATOR_SETTINGS");
             ConfigurationManager.Instance.Init(path);
 
@@ -36,7 +36,7 @@ namespace CrawlerOrphanet
             List<Disease> lst_diseases = new List<Disease>();
             using (var db = new MongoRepository.DiseaseRepository())
             {
-                //lst_diseases = db.selectAll().Take(10).ToList();
+                //lst_diseases = db.selectAll().Take(50).ToList();
                 lst_diseases = db.selectAll();
             }
 
@@ -48,6 +48,7 @@ namespace CrawlerOrphanet
             pubmedEngine.Start2(lst_diseases);
             */
 
+            /*
             //Update number of publications per disease
             Console.WriteLine("Update number of publications per disease.....");
             using (var dbDisease = new MongoRepository.DiseaseRepository())
@@ -62,14 +63,15 @@ namespace CrawlerOrphanet
                 }
             }
             Console.WriteLine("Update number of publications per disease finished");
-            
-            
+            */
+
+            /*
             //Retrieving related entities by disease AND TextMine
             TextMiningEngine textMiningEngine = new TextMiningEngine();
             RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);
             //RecupLinkedDiseasesAndTextMine(lst_diseases, textMiningEngine);
             //RecupDrugsAndTextMine(lst_diseases, textMiningEngine);
-            
+            */
 
             //Retrieving PredictionData and RealData from DB (DiseasesData with type Symptom)
             DiseasesData PredictionData = null;
@@ -85,7 +87,10 @@ namespace CrawlerOrphanet
             //Evaluation...
             if (PredictionData != null && RealData != null)
             {
-                Evaluator.Evaluate(PredictionData, RealData);
+                Console.WriteLine("Evaluation....");
+                //Evaluator.Evaluate(PredictionData, RealData, 50.0);
+                Evaluator.MetaEvaluate(PredictionData, RealData, 0.0, 100.0, 5.0);
+                Console.WriteLine("Evaluation finished!");
             }
 
 
@@ -130,7 +135,7 @@ namespace CrawlerOrphanet
                 LaunchBatchs_Recup_Count(nombreBatch, batchSize, lst_diseases, textMiningEngine, PredictionData);
 
                 //Treatment
-                Apply_TF_IDF_ToAllDiseaseData(lst_diseases, PredictionData);
+                Apply_TF_IDF_ToAllDiseaseData(PredictionData);
                 Normalization(PredictionData);
                 KeepTheBest(PredictionData);
 
@@ -215,7 +220,7 @@ namespace CrawlerOrphanet
                 //REAL Process
                 //Publication recup
                 //Console.WriteLine("Publications recup...");
-                publicationsPerDisease = new List<List<Publication>>();
+                publicationsPerDisease = new Dictionary<string, List<Publication>>();
                 using (var publicationRepository = new MongoRepository.PublicationRepository())
                 {
                     //Retrieving publications of selected diseases
@@ -225,7 +230,11 @@ namespace CrawlerOrphanet
                         List<Publication> pubs = publicationRepository.getByOrphaNumberOfLinkedDisease(disease.OrphaNumber);
                         if (pubs.Count != 0)
                         {
-                            publicationsPerDisease.Add(pubs);
+                            publicationsPerDisease.Add(disease.OrphaNumber, pubs);
+                        }
+                        else
+                        {
+                            publicationsPerDisease.Add(disease.OrphaNumber, new List<Publication>());
                         }
                     }
                     //Console.WriteLine("Publications recup finished!");
@@ -237,13 +246,21 @@ namespace CrawlerOrphanet
                     //foreach(List<Publication> pubs in publicationsPerDisease)
                     Parallel.ForEach(publicationsPerDisease, (pubs) =>
                     {
-                        if (pubs.Count != 0)
+                        if (pubs.Value.Count != 0)
                         {
                             //Extract symptoms
                             DiseaseData dataOneDisease = textMiningEngine.GetPredictionDataCountFromPublicationsOfOneDisease(
-                                pubs,
-                                selectedDiseases.Where(disease => disease.OrphaNumber == pubs[0].orphaNumberOfLinkedDisease).FirstOrDefault());
+                                pubs.Value,
+                                selectedDiseases.Where(disease => disease.OrphaNumber == pubs.Key).FirstOrDefault());
 
+                            PredictionData.DiseaseDataList.Add(dataOneDisease);
+                        }
+                        else
+                        {
+                            DiseaseData dataOneDisease = new DiseaseData(
+                                selectedDiseases.Where(disease => disease.OrphaNumber == pubs.Key).FirstOrDefault(), 
+                                new RelatedEntities(type.Symptom, new List<RelatedEntity>()));
+                            
                             PredictionData.DiseaseDataList.Add(dataOneDisease);
                         }
                     }
@@ -259,11 +276,10 @@ namespace CrawlerOrphanet
         }
 
         static void Apply_TF_IDF_ToAllDiseaseData(
-            List<Disease> lst_diseases, //Complete list of diessases
             DiseasesData PredictionData //Var to UPDATE
             )
         {
-            int totalNumberOfDisease = lst_diseases.Count;
+            int totalNumberOfDisease = PredictionData.DiseaseDataList.Count;
 
             //Get list of NbDiseasei (Number of disease where symptoms i appears)
             Dictionary<RelatedEntity, int> phenotypesAlreadySeenWithOccurences = new Dictionary<RelatedEntity, int>();
@@ -271,7 +287,7 @@ namespace CrawlerOrphanet
             int countDisease = 0;
             foreach(var diseasedata in PredictionData.DiseaseDataList)
             {
-                Console.WriteLine(countDisease);
+                //Console.WriteLine(countDisease);
                 foreach (var phenotype in diseasedata.RelatedEntities.RelatedEntitiesList)
                 {
 
@@ -291,7 +307,7 @@ namespace CrawlerOrphanet
                         );
 
                         //TO TEST OccTotJ (number of words)
-                        Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i)}");
+                        //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i)}");
                         phenotype.Weight = ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i);
 
                         //Add to already seen list
@@ -302,7 +318,7 @@ namespace CrawlerOrphanet
                     {
                         //Apply weight update
                         //Console.WriteLine("No Count");
-                        Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value)}");
+                        //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value)}");
                         phenotype.Weight = ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value);
                     }
                 }
@@ -314,25 +330,31 @@ namespace CrawlerOrphanet
         {
             foreach (var diseasedata in PredictionData.DiseaseDataList)
             {
-                var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
-                //Symptom Weight Normalization from 0 to 100
-                for (int i = 0; i < relatedEntities.Count; i++)
+                //var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
+                if (diseasedata.RelatedEntities.RelatedEntitiesList.Count != 0)
                 {
                     //Find Min and Max for Normalization
-                    double max = relatedEntities.Max(x => x.Weight);
-                    double min = relatedEntities.Min(x => x.Weight);
+                    double max = diseasedata.RelatedEntities.RelatedEntitiesList.Max(x => x.Weight);
+                    double min = diseasedata.RelatedEntities.RelatedEntitiesList.Min(x => x.Weight);
 
-                    //Normalization
-                    if (max == min)//If size==1
+                    double newMax = 100.0;
+                    double newMin = 0.0;
+
+                    if (max == min)
                     {
-                        if (relatedEntities[i].Weight > 100.0)
+                        for (int i = 0; i < diseasedata.RelatedEntities.RelatedEntitiesList.Count; i++)
                         {
-                            relatedEntities[i].Weight = 100.0;
+                            diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight = 100.0;
                         }
                     }
                     else
                     {
-                        relatedEntities[i].Weight = 100 * (relatedEntities[i].Weight - min) / (max - min);
+                        //Symptom Weight Normalization from 0 to 100
+                        for (int i = 0; i < diseasedata.RelatedEntities.RelatedEntitiesList.Count; i++)
+                        {
+                            diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight = 
+                                newMin + (newMax - newMin) * (diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight - min) / (max - min);
+                        }
                     }
                 }
             }
@@ -343,16 +365,16 @@ namespace CrawlerOrphanet
         {
             foreach (var diseasedata in PredictionData.DiseaseDataList)
             {
-                var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
-                //Sort related entities by descending weight
-                relatedEntities.OrderByDescending(x => x.Weight).ToList();
-
-                //Take only a the best symptoms (see config file)
-                relatedEntities =
-                    relatedEntities
-                    .OrderByDescending(x => x.Weight)
-                    .Take(ConfigurationManager.Instance.config.MaxNumberSymptoms)
-                    .ToList();
+                //var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
+                if (diseasedata.RelatedEntities.RelatedEntitiesList.Count != 0)
+                {
+                    //Take only a the best symptoms (see config file)
+                    diseasedata.RelatedEntities.RelatedEntitiesList =
+                        diseasedata.RelatedEntities.RelatedEntitiesList
+                        .OrderByDescending(x => x.Weight)
+                        .Take(ConfigurationManager.Instance.config.MaxNumberSymptoms)
+                        .ToList();
+                }
             }
         }
 

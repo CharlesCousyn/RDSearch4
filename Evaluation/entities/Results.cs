@@ -23,6 +23,9 @@ namespace Evaluation
     public class General
     {
         public DateTime TimeStamp { get; set; }
+        public int NumberOfDiseasesWithKnownPhenotypes { get; set; }
+        public int NumberOfDiseasesWithPublicationsInPredictionData { get; set; }
+        public int NumberOfDiseasesEvaluatedForReal { get; set; }
         public string Type { get; set; }
         public int RealPositives { get; set; }
         public int FalsePositives { get; set; }
@@ -31,10 +34,17 @@ namespace Evaluation
         public double Recall { get; set; }
         public double F_Score { get; set; }
 
-        public General(DateTime TimeStampP, string TypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
+        public General(DateTime TimeStampP, 
+            int NumberOfDiseasesWithKnownPhenotypesP, 
+            int NumberOfDiseasesWithPublicationsInPredictionDataP,
+            int NumberOfDiseasesEvaluatedForRealP,
+            string TypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
             double PrecisionP, double RecallP, double F_ScoreP)
         {
             TimeStamp = TimeStampP;
+            NumberOfDiseasesWithKnownPhenotypes = NumberOfDiseasesWithKnownPhenotypesP;
+            NumberOfDiseasesWithPublicationsInPredictionData = NumberOfDiseasesWithPublicationsInPredictionDataP;
+            NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;
             Type = TypeP;
             RealPositives = RealPositivesP;
             FalsePositives = FalsePositivesP;
