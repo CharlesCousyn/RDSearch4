@@ -19,7 +19,8 @@ namespace CrawlerOrphanet
         static void Main(string[] args)
         {
             //Environnement variables
-            Environment.SetEnvironmentVariable("RD_AGGREGATOR_SETTINGS", @"C:\Users\Psycho\Source\Repos\RDSearch4\settings.json");
+            //Environment.SetEnvironmentVariable("RD_AGGREGATOR_SETTINGS", @"C:\Users\Psycho\Source\Repos\RDSearch4\settings.json");
+            Environment.SetEnvironmentVariable("RD_AGGREGATOR_SETTINGS", @"C:\Users\CharlesCOUSYN\source\repos\Aggregator\settings.json");
             var path = Environment.GetEnvironmentVariable("RD_AGGREGATOR_SETTINGS");
             ConfigurationManager.Instance.Init(path);
 
