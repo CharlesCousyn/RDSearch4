@@ -5,13 +5,13 @@ using System.IO;
 using System.Linq;
 using ConfigurationJSON;
 using MongoRepository.entities;
+using Evaluation.entities;
 
 namespace Evaluation
 {
     public class Evaluator
     {
-        //TODO Thresold
-        public static void Evaluate(DiseasesData PredictionData, DiseasesData RealData, double threshold = 0.0, string wantedFileName = "")
+        public static Results Evaluate(DiseasesData PredictionData, DiseasesData RealData, double threshold = 0.0)
         {
             //Object to write in JSON
             Results results = new Results();
@@ -138,6 +138,7 @@ namespace Evaluation
             //Construct results object
             results.general = new General(
                 DateTime.Now,
+                threshold,
                 NumberOfDiseasesWithKnownPhenotypes,
                 NumberOfDiseasesWithPublicationsInPredictionData,
                 NumberOfDiseasesEvaluatedForReal,
@@ -149,11 +150,10 @@ namespace Evaluation
                 Recall, 
                 F_Score);
 
-            //Write JSON FILE
-            WriteJSONFile(results, wantedFileName);
+            return results;
         }
 
-        public static void WriteJSONFile(Results results, string wantedFileName = "")
+        public static void WriteResultsJSONFile(Results results, string wantedFileName = "")
         {
             string output = JsonConvert.SerializeObject(results, Formatting.Indented);
 
@@ -170,15 +170,80 @@ namespace Evaluation
             }
 
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
-
         }
 
-        public static void MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, double minWeight, double maxWeight, double step)
+        public static MetaResults MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, double minWeight, double maxWeight, double step, Criterion criterion)
         {
+            //Create MetaResult
+            MetaResults metaResults = new MetaResults();
+
+            //Compute all results and put them in metaResults
+            List<Results> listResults = new List<Results>();
             for (double i = minWeight; i <= maxWeight; i+=step)
             {
-                Evaluate(PredictionData, RealData, i, $"threshold_{i}.json");
+                Results currentRes = Evaluate(PredictionData, RealData, i);
+                listResults.Add(currentRes);
+                metaResults.perThreshold.Add(
+                    new PerThreshold(
+                        i,
+                        currentRes.general.Type,
+                        currentRes.general.RealPositives,
+                        currentRes.general.FalsePositives,
+                        currentRes.general.FalseNegatives,
+                        currentRes.general.Precision,
+                        currentRes.general.Recall,
+                        currentRes.general.F_Score
+                        ));
             }
+
+            //Find best results
+            Results Best_Result;
+            switch (criterion)
+            {
+                case Criterion.F_Score:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.F_Score > savedRes.general.F_Score ? currentRes : savedRes);
+                    break;
+                case Criterion.Precision:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.Precision > savedRes.general.Precision ? currentRes : savedRes);
+                    break;
+                case Criterion.Recall:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.Recall > savedRes.general.Recall ? currentRes : savedRes);
+                    break;
+                default:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.F_Score > savedRes.general.F_Score ? currentRes : savedRes);
+                    break;
+            }
+
+            //Complete metaResults
+            metaResults.bestInfos = new BestInfos(
+                    Best_Result.general.TimeStamp,
+                    Best_Result.general.Type,
+                    Best_Result.general.Threshold,
+                    Best_Result.general.Precision,
+                    Best_Result.general.Recall,
+                    Best_Result.general.F_Score,
+                    criterion
+                );
+
+            return metaResults;
+        }
+
+        public static void WriteMetaResultsJSONFile(MetaResults metaResults, string wantedFileName = "")
+        {
+            string output = JsonConvert.SerializeObject(metaResults, Formatting.Indented);
+
+            //Choose the name
+            string fileName = "";
+            if (wantedFileName != "")
+            {
+                fileName = wantedFileName;
+            }
+            else
+            {
+                fileName = "metaResults_" + metaResults.bestInfos.TimeStamp.ToString("yyyy-MM-dd_HH-mm-ss") + ".json";
+            }
+
+            File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
         }
     }
 }

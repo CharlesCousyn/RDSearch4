@@ -88,8 +88,8 @@ namespace CrawlerOrphanet
             if (PredictionData != null && RealData != null)
             {
                 Console.WriteLine("Evaluation....");
-                //Evaluator.Evaluate(PredictionData, RealData, 50.0);
-                Evaluator.MetaEvaluate(PredictionData, RealData, 0.0, 100.0, 5.0);
+                //Evaluator.WriteResultsJSONFile(Evaluator.Evaluate(PredictionData, RealData, 0.0));
+                Evaluator.WriteMetaResultsJSONFile(Evaluator.MetaEvaluate(PredictionData, RealData, 0.0, 100.0, 1.0, Evaluation.entities.Criterion.F_Score));
                 Console.WriteLine("Evaluation finished!");
             }
 

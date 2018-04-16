@@ -23,6 +23,7 @@ namespace Evaluation
     public class General
     {
         public DateTime TimeStamp { get; set; }
+        public double Threshold { get; set; }
         public int NumberOfDiseasesWithKnownPhenotypes { get; set; }
         public int NumberOfDiseasesWithPublicationsInPredictionData { get; set; }
         public int NumberOfDiseasesEvaluatedForReal { get; set; }
@@ -34,7 +35,8 @@ namespace Evaluation
         public double Recall { get; set; }
         public double F_Score { get; set; }
 
-        public General(DateTime TimeStampP, 
+        public General(DateTime TimeStampP,
+            double ThresholdP,
             int NumberOfDiseasesWithKnownPhenotypesP, 
             int NumberOfDiseasesWithPublicationsInPredictionDataP,
             int NumberOfDiseasesEvaluatedForRealP,
@@ -42,6 +44,7 @@ namespace Evaluation
             double PrecisionP, double RecallP, double F_ScoreP)
         {
             TimeStamp = TimeStampP;
+            Threshold = ThresholdP;
             NumberOfDiseasesWithKnownPhenotypes = NumberOfDiseasesWithKnownPhenotypesP;
             NumberOfDiseasesWithPublicationsInPredictionData = NumberOfDiseasesWithPublicationsInPredictionDataP;
             NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;

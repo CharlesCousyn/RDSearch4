@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="entities\DAL.cs" />
+    <Compile Include="entities\MetaResults.cs" />
     <Compile Include="entities\Results.cs" />
     <Compile Include="Evaluator.cs" />
     <Compile Include="IDAL.cs" />
