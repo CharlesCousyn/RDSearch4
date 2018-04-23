@@ -71,11 +71,13 @@
     <Compile Include="entities\Disease.cs" />
     <Compile Include="entities\DiseaseData.cs" />
     <Compile Include="entities\DiseasesData.cs" />
+    <Compile Include="entities\IDF.cs" />
     <Compile Include="entities\NumberPublicationsForOneYear.cs" />
     <Compile Include="entities\Publication.cs" />
     <Compile Include="entities\RelatedEntities.cs" />
     <Compile Include="entities\RelatedEntity.cs" />
     <Compile Include="entities\Symptom.cs" />
+    <Compile Include="entities\TermFrequency.cs" />
     <Compile Include="entities\TextualInformation.cs" />
     <Compile Include="entities\Type.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

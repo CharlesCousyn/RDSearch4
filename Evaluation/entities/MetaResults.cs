@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using MongoRepository.entities;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
@@ -10,16 +11,24 @@ namespace Evaluation.entities
 {
     public class MetaResults
     {
+        [JsonConverter(typeof(StringEnumConverter))]
+        public TFType TFType;
+        [JsonConverter(typeof(StringEnumConverter))]
+        public IDFType IDFType;
         public BestInfos bestInfos { get; set; }
         public List<PerThreshold> perThreshold { get; set; }
 
-        public MetaResults(BestInfos bestInfosP, List<PerThreshold> perThresholdP)
+        public MetaResults(TFType TFTypeP, IDFType IDFTypeP, BestInfos bestInfosP, List<PerThreshold> perThresholdP)
         {
+            TFType = TFTypeP;
+            IDFType = IDFTypeP;
             bestInfos = bestInfosP;
             perThreshold = perThresholdP;
         }
-        public MetaResults()
+        public MetaResults(TFType TFTypeP, IDFType IDFTypeP)
         {
+            TFType = TFTypeP;
+            IDFType = IDFTypeP;
             perThreshold = new List<PerThreshold>();
         }
     }

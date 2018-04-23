@@ -11,8 +11,11 @@ namespace Evaluation
 {
     public class Evaluator
     {
-        public static Results Evaluate(DiseasesData PredictionData, DiseasesData RealData, double threshold = 0.0)
+        public static Results Evaluate(DiseasesData PredictionData, DiseasesData RealData,
+            Tuple<TFType, IDFType> WeightCombinaison,
+            double threshold = 0.0)
         {
+
             //Object to write in JSON
             Results results = new Results();
 
@@ -51,7 +54,11 @@ namespace Evaluation
 
                     for (int j = 0; j < PredictionDiseaseData.RelatedEntities.RelatedEntitiesList.Count; j++)
                     {
-                        if (threshold == 0.0 || PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Weight >= threshold)
+                        double realWeight = PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j]
+                            .CalcFinalWeight(WeightCombinaison.Item1, WeightCombinaison.Item2);
+
+                        //if (threshold == 0.0 || PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Weight >= threshold)
+                        if (threshold == 0.0 || realWeight >= threshold)
                         {
                             //Is my predicted related entity is present in the real data?
                             if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
@@ -71,7 +78,8 @@ namespace Evaluation
                     List<string> RelatedEntitiesNamesPred =
                         PredictionDiseaseData
                         .RelatedEntities.RelatedEntitiesList
-                        .Where(entity => threshold == 0.0 || entity.Weight >= threshold)
+                        .Where(entity => threshold == 0.0 || 
+                        entity.CalcFinalWeight(WeightCombinaison.Item1, WeightCombinaison.Item2) >= threshold)
                         .Select(x => x.Name)
                         .ToList();
                     for (int j = 0; j < RealDiseaseData.RelatedEntities.RelatedEntitiesList.Count; j++)
@@ -153,6 +161,21 @@ namespace Evaluation
             return results;
         }
 
+        public static List<Tuple<TFType, IDFType>> GenerateDisctinctsTupleForWeightComputation()
+        {
+            List<Tuple<TFType, IDFType>> res = new List<Tuple<TFType, IDFType>>();
+
+            foreach(TFType valEnumTFType in Enum.GetValues(typeof(TFType)))
+            {
+                foreach (IDFType valEnumIDFType in Enum.GetValues(typeof(IDFType)))
+                {
+                    res.Add(new Tuple<TFType, IDFType>(valEnumTFType, valEnumIDFType));
+                }
+            }
+
+            return res;
+        }
+
         public static void WriteResultsJSONFile(Results results, string wantedFileName = "")
         {
             string output = JsonConvert.SerializeObject(results, Formatting.Indented);
@@ -172,16 +195,16 @@ namespace Evaluation
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
         }
 
-        public static MetaResults MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, double minWeight, double maxWeight, double step, Criterion criterion)
+        public static MetaResults MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, Tuple<TFType, IDFType> WeightCombinaison, double minWeight, double maxWeight, double step, Criterion criterion)
         {
             //Create MetaResult
-            MetaResults metaResults = new MetaResults();
+            MetaResults metaResults = new MetaResults(WeightCombinaison.Item1, WeightCombinaison.Item2);
 
             //Compute all results and put them in metaResults
             List<Results> listResults = new List<Results>();
             for (double i = minWeight; i <= maxWeight; i+=step)
             {
-                Results currentRes = Evaluate(PredictionData, RealData, i);
+                Results currentRes = Evaluate(PredictionData, RealData, WeightCombinaison, i);
                 listResults.Add(currentRes);
                 metaResults.perThreshold.Add(
                     new PerThreshold(
@@ -228,7 +251,9 @@ namespace Evaluation
             return metaResults;
         }
 
-        public static void WriteMetaResultsJSONFile(MetaResults metaResults, string wantedFileName = "")
+        public static void WriteMetaResultsJSONFile(
+            MetaResults metaResults,
+            string wantedFileName = "")
         {
             string output = JsonConvert.SerializeObject(metaResults, Formatting.Indented);
 
@@ -240,10 +265,34 @@ namespace Evaluation
             }
             else
             {
-                fileName = "metaResults_" + metaResults.bestInfos.TimeStamp.ToString("yyyy-MM-dd_HH-mm-ss") + ".json";
+                fileName = $"metaResults_{metaResults.bestInfos.TimeStamp.ToString("yyyy-MM-dd_HH-mm-ss")}_{metaResults.TFType.ToString()}_{metaResults.IDFType.ToString()}.json";
             }
-
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
+        }
+
+        public static void WriteListOfMetaResultsJSONFile( List<MetaResults> listMetaResults)
+        {
+            foreach (var metaResults in listMetaResults)
+            {
+                WriteMetaResultsJSONFile(metaResults);
+            }
+        }
+
+        public static List<MetaResults> EvaluateMultipleFormulas(
+            DiseasesData PredictionData, 
+            DiseasesData RealData,
+            double minWeight, 
+            double maxWeight, 
+            double step,
+            Criterion criterion)
+        {
+            List<MetaResults> listMetaResults = new List<MetaResults>();
+            List<Tuple<TFType, IDFType>> ListOfWeightCombinaisons = GenerateDisctinctsTupleForWeightComputation();
+            foreach(var element in ListOfWeightCombinaisons)
+            {
+                listMetaResults.Add(MetaEvaluate(PredictionData, RealData, element, minWeight, maxWeight, step, criterion));
+            }
+            return listMetaResults;
         }
     }
 }

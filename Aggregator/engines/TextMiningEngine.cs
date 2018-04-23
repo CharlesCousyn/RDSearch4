@@ -106,7 +106,8 @@ namespace CrawlerOrphanet
                     int index = relatedEntities.FindIndex(symptom => symptom.Name.Equals(str) || symptom.Synonyms.IndexOf(str) != -1);
                     if (index != -1)
                     {
-                        relatedEntities[index].Weight++;
+                        //relatedEntities[index].Weight++;
+                        relatedEntities[index].TermFrequencies.Where(tf =>tf.TFType==TFType.RawCount).FirstOrDefault().Value++;
                     }
                     else
                     {
@@ -116,14 +117,14 @@ namespace CrawlerOrphanet
                         //Add the real Symptom if it exists
                         if(symptomFromPhetotypes != null)
                         {
-                            relatedEntities.Add(
-                            new RelatedEntity(
+                            RelatedEntity myRealEntity = new RelatedEntity(
                                 type.Symptom,
                                 symptomFromPhetotypes.Name,
                                 1.0,
                                 symptomFromPhetotypes.Synonyms
-                                )
-                            );
+                                );
+
+                            relatedEntities.Add(myRealEntity);
                         }
                         
                     }

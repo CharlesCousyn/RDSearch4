@@ -37,9 +37,10 @@ namespace CrawlerOrphanet
             List<Disease> lst_diseases = new List<Disease>();
             using (var db = new MongoRepository.DiseaseRepository())
             {
-                //lst_diseases = db.selectAll().Take(50).ToList();
+                //lst_diseases = db.selectAll().Take(10).ToList();
                 lst_diseases = db.selectAll();
             }
+            
 
             //TESTED AND DONE
             /*
@@ -90,7 +91,25 @@ namespace CrawlerOrphanet
             {
                 Console.WriteLine("Evaluation....");
                 //Evaluator.WriteResultsJSONFile(Evaluator.Evaluate(PredictionData, RealData, 0.0));
-                Evaluator.WriteMetaResultsJSONFile(Evaluator.MetaEvaluate(PredictionData, RealData, 0.0, 100.0, 1.0, Evaluation.entities.Criterion.F_Score));
+                /*
+                Tuple<TFType, IDFType> WeightCombinaison = new Tuple<TFType, IDFType>(TFType.RawCount, IDFType.IDF_Classic);
+                Evaluator.WriteMetaResultsJSONFile(
+                    Evaluator.MetaEvaluate(
+                        PredictionData, 
+                        RealData,
+                        WeightCombinaison,
+                        0.0, 100.0, 1.0, 
+                        Evaluation.entities.Criterion.F_Score)
+                        );*/
+
+                Evaluator.WriteListOfMetaResultsJSONFile(
+                    Evaluator.EvaluateMultipleFormulas(
+                        PredictionData,
+                        RealData,
+                        0.0, 100.0, 1.0,
+                        Evaluation.entities.Criterion.F_Score)
+                        );
+
                 Console.WriteLine("Evaluation finished!");
             }
 
@@ -244,7 +263,7 @@ namespace CrawlerOrphanet
                     //Extraction Symptomes
                     //Console.WriteLine("Extraction Symptoms...");
 
-                    //foreach(List<Publication> pubs in publicationsPerDisease)
+                    //foreach(var pubs in publicationsPerDisease)
                     Parallel.ForEach(publicationsPerDisease, (pubs) =>
                     {
                         if (pubs.Value.Count != 0)
@@ -289,10 +308,28 @@ namespace CrawlerOrphanet
             foreach(var diseasedata in PredictionData.DiseaseDataList)
             {
                 //Console.WriteLine(countDisease);
+
                 foreach (var phenotype in diseasedata.RelatedEntities.RelatedEntitiesList)
                 {
+                    ////////////////
+                    //Compute TFs///
+                    ////////////////
+                    double rawCount = phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.RawCount).FirstOrDefault().Value;
+                    if (rawCount != 0.0)
+                    {
+                        phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.Binary).FirstOrDefault().Value = 1.0;
+                    }
+                    else
+                    {
+                        phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.Binary).FirstOrDefault().Value = 0.0;
+                    }
+                    phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.LogNorm).FirstOrDefault().Value =
+                           Math.Log10(1 + rawCount);
 
-                    //Find the phenotype
+                    ////////////////
+                    //Compute IDFs//
+                    ////////////////
+                    //Find the phenotype in alreadyseen phenotypes
                     List<KeyValuePair<RelatedEntity, int>> existantPhenotype = phenotypesAlreadySeenWithOccurences
                         .Where(p => p.Key.Name.Equals(phenotype.Name))
                         .ToList();
@@ -307,8 +344,18 @@ namespace CrawlerOrphanet
                             p => p.Name.Equals(phenotype.Name))
                         );
 
+
                         //TO TEST OccTotJ (number of words)
                         //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i)}");
+                        //Compute IDFs
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic).FirstOrDefault().Value =
+                            Math.Log10((double)totalNumberOfDisease / (double)NbDisease_i);
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth).FirstOrDefault().Value =
+                            Math.Log10(1.0 + ((double)totalNumberOfDisease / (double)NbDisease_i));
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF).FirstOrDefault().Value =
+                            Math.Log10(1.0 + (((double)totalNumberOfDisease - (double)NbDisease_i) / (double)NbDisease_i));
+
                         phenotype.Weight = ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i);
 
                         //Add to already seen list
@@ -320,9 +367,20 @@ namespace CrawlerOrphanet
                         //Apply weight update
                         //Console.WriteLine("No Count");
                         //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value)}");
+                        
+                        //Compute IDFs
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic).FirstOrDefault().Value =
+                            Math.Log10((double)totalNumberOfDisease / (double)existantPhenotype[0].Value);
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth).FirstOrDefault().Value =
+                            Math.Log10(1.0 + ((double)totalNumberOfDisease / (double)existantPhenotype[0].Value));
+                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF).FirstOrDefault().Value =
+                            Math.Log10(1.0 + (((double)totalNumberOfDisease - (double)existantPhenotype[0].Value) / (double)existantPhenotype[0].Value));
+
                         phenotype.Weight = ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value);
                     }
                 }
+                
                 countDisease++;
             }
         }
@@ -388,7 +446,7 @@ namespace CrawlerOrphanet
         {
             double tf = ocurrence_i_j / ocurrenceTot_j;
 
-            double idf = System.Math.Log10(nbDiseasesTot / nbDiseases_i);
+            double idf = Math.Log10((double)nbDiseasesTot / (double)nbDiseases_i);
 
             return tf * idf;
         }
