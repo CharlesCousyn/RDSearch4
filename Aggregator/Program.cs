@@ -289,7 +289,7 @@ namespace CrawlerOrphanet
             Dictionary<RelatedEntity, int> phenotypesAlreadySeenWithOccurences = new Dictionary<RelatedEntity, int>();
 
             //Get list of SumOfMinMaxNorm_i (Sum of rawcount of symptom i in all diseases)
-            Dictionary<RelatedEntity, int> phenotypesAlreadySeenWithSumOfMinMaxNorm_i = new Dictionary<RelatedEntity, int>();
+            Dictionary<RelatedEntity, double> phenotypesAlreadySeenWithSumOfMinMaxNorm_i = new Dictionary<RelatedEntity, double>();
 
             int countDisease = 0;
             foreach(var diseasedata in PredictionData.DiseaseDataList)
@@ -324,7 +324,7 @@ namespace CrawlerOrphanet
                     List<KeyValuePair<RelatedEntity, int>> existantPhenotype = phenotypesAlreadySeenWithOccurences
                         .Where(p => p.Key.Name.Equals(phenotype.Name))
                         .ToList();
-                    List<KeyValuePair<RelatedEntity, int>> existantPhenotypeSum = phenotypesAlreadySeenWithSumOfMinMaxNorm_i
+                    List<KeyValuePair<RelatedEntity, double>> existantPhenotypeSum = phenotypesAlreadySeenWithSumOfMinMaxNorm_i
                         .Where(p => p.Key.Name.Equals(phenotype.Name))
                         .ToList();
 
@@ -342,7 +342,7 @@ namespace CrawlerOrphanet
                                 .Any(p => p.Name.Equals(phenotype.Name))
                             );
                         //Sum all the MinMaxNorm of phenotype i in all diseases
-                        int SumOfMinMaxNorm_i = 
+                        double SumOfMinMaxNorm_i = 
                             PredictionData
                             .DiseaseDataList
                             .Sum(d =>
@@ -352,11 +352,11 @@ namespace CrawlerOrphanet
                                 .FirstOrDefault();
                                 if(relatedEntity == null)
                                 {
-                                    return 0;
+                                    return 0.0;
                                 }
                                 else
                                 {
-                                    return (int) relatedEntity
+                                    return relatedEntity
                                     .TermFrequencies
                                     .Where(TF => TF.TFType == TFType.MinMaxNorm)
                                     .FirstOrDefault()
@@ -390,7 +390,7 @@ namespace CrawlerOrphanet
             }
         }
 
-        static void UpdateIDFs(RelatedEntity phenotype, int totalNumberOfDisease, int NbDisease_i, int SumOfMinMaxNorm_i)
+        static void UpdateIDFs(RelatedEntity phenotype, int totalNumberOfDisease, int NbDisease_i, double SumOfMinMaxNorm_i)
         {
             //IDF UNARY
             phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
