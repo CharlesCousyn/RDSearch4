@@ -37,8 +37,8 @@ namespace CrawlerOrphanet
             List<Disease> lst_diseases = new List<Disease>();
             using (var db = new MongoRepository.DiseaseRepository())
             {
-                //lst_diseases = db.selectAll().Take(10).ToList();
-                lst_diseases = db.selectAll();
+                lst_diseases = db.selectAll().Take(10).ToList();
+                //lst_diseases = db.selectAll();
             }
             
 
@@ -67,13 +67,13 @@ namespace CrawlerOrphanet
             Console.WriteLine("Update number of publications per disease finished");
             */
 
-            /*
+            
             //Retrieving related entities by disease AND TextMine
             TextMiningEngine textMiningEngine = new TextMiningEngine();
             RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);
             //RecupLinkedDiseasesAndTextMine(lst_diseases, textMiningEngine);
             //RecupDrugsAndTextMine(lst_diseases, textMiningEngine);
-            */
+            
 
             //Retrieving PredictionData and RealData from DB (DiseasesData with type Symptom)
             DiseasesData PredictionData = null;
@@ -85,33 +85,16 @@ namespace CrawlerOrphanet
                 RealData = dbReal.selectByType(type.Symptom);
             }
 
-
+            /*
             //Evaluation...
             if (PredictionData != null && RealData != null)
             {
                 Console.WriteLine("Evaluation....");
-                //Evaluator.WriteResultsJSONFile(Evaluator.Evaluate(PredictionData, RealData, 0.0));
-                /*
-                Tuple<TFType, IDFType> WeightCombinaison = new Tuple<TFType, IDFType>(TFType.RawCount, IDFType.IDF_Classic);
-                Evaluator.WriteMetaResultsJSONFile(
-                    Evaluator.MetaEvaluate(
-                        PredictionData, 
-                        RealData,
-                        WeightCombinaison,
-                        0.0, 100.0, 1.0, 
-                        Evaluation.entities.Criterion.F_Score)
-                        );*/
-
-                Evaluator.WriteListOfMetaResultsJSONFile(
-                    Evaluator.EvaluateMultipleFormulas(
-                        PredictionData,
-                        RealData,
-                        0.0, 100.0, 1.0,
-                        Evaluation.entities.Criterion.F_Score)
-                        );
+                Evaluator.WriteListOfResultsJSONFile(
+                    Evaluator.EvaluateMultipleFormulas(PredictionData,RealData));
 
                 Console.WriteLine("Evaluation finished!");
-            }
+            }*/
 
 
             Console.WriteLine("Finished :)");
@@ -155,9 +138,10 @@ namespace CrawlerOrphanet
                 LaunchBatchs_Recup_Count(nombreBatch, batchSize, lst_diseases, textMiningEngine, PredictionData);
 
                 //Treatment
-                Apply_TF_IDF_ToAllDiseaseData(PredictionData);
-                Normalization(PredictionData);
-                KeepTheBest(PredictionData);
+                MinMaxNormalization(PredictionData, 0.0, 1.0, TFType.RawCount, TFType.MinMaxNorm);
+                Compute_TF_IDF_Terms_ToAllDiseaseData(PredictionData);
+                OrderDiseaseDatas(PredictionData);
+                //KeepTheBest(PredictionData);
 
                 //Insert in DB
                 InsertPredictionInDB(PredictionData.DiseaseDataList, predictionDataRepository);
@@ -295,26 +279,31 @@ namespace CrawlerOrphanet
             }
         }
 
-        static void Apply_TF_IDF_ToAllDiseaseData(
+        static void Compute_TF_IDF_Terms_ToAllDiseaseData(
             DiseasesData PredictionData //Var to UPDATE
             )
         {
             int totalNumberOfDisease = PredictionData.DiseaseDataList.Count;
 
-            //Get list of NbDiseasei (Number of disease where symptoms i appears)
+            //Get list of NbDisease_i (Number of disease where symptom i appears)
             Dictionary<RelatedEntity, int> phenotypesAlreadySeenWithOccurences = new Dictionary<RelatedEntity, int>();
+
+            //Get list of SumOfMinMaxNorm_i (Sum of rawcount of symptom i in all diseases)
+            Dictionary<RelatedEntity, int> phenotypesAlreadySeenWithSumOfMinMaxNorm_i = new Dictionary<RelatedEntity, int>();
 
             int countDisease = 0;
             foreach(var diseasedata in PredictionData.DiseaseDataList)
             {
-                //Console.WriteLine(countDisease);
-
                 foreach (var phenotype in diseasedata.RelatedEntities.RelatedEntitiesList)
                 {
                     ////////////////
                     //Compute TFs///
                     ////////////////
+
+                    //RawCount already done by LingPipe...
                     double rawCount = phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.RawCount).FirstOrDefault().Value;
+
+                    //TF Binary
                     if (rawCount != 0.0)
                     {
                         phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.Binary).FirstOrDefault().Value = 1.0;
@@ -323,43 +312,67 @@ namespace CrawlerOrphanet
                     {
                         phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.Binary).FirstOrDefault().Value = 0.0;
                     }
-                    phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.LogNorm).FirstOrDefault().Value =
-                           Math.Log10(1 + rawCount);
+
+                    //TF LogNorm
+                    phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.LogNorm).FirstOrDefault().Value = Math.Log10(1 + rawCount);
 
                     ////////////////
                     //Compute IDFs//
                     ////////////////
+
                     //Find the phenotype in alreadyseen phenotypes
                     List<KeyValuePair<RelatedEntity, int>> existantPhenotype = phenotypesAlreadySeenWithOccurences
                         .Where(p => p.Key.Name.Equals(phenotype.Name))
                         .ToList();
-                    
+                    List<KeyValuePair<RelatedEntity, int>> existantPhenotypeSum = phenotypesAlreadySeenWithSumOfMinMaxNorm_i
+                        .Where(p => p.Key.Name.Equals(phenotype.Name))
+                        .ToList();
+
                     //If not existant
                     if (existantPhenotype.Count == 0)
                     {
                         //Console.WriteLine("Count");
                         //Count number of times phenotype i appears
-                        int NbDisease_i = PredictionData.DiseaseDataList.Count(
-                            diseaseData => diseaseData.RelatedEntities.RelatedEntitiesList.Any(
-                            p => p.Name.Equals(phenotype.Name))
-                        );
+                        int NbDisease_i = 
+                            PredictionData
+                            .DiseaseDataList
+                            .Count(diseaseData => diseaseData
+                                .RelatedEntities
+                                .RelatedEntitiesList
+                                .Any(p => p.Name.Equals(phenotype.Name))
+                            );
+                        //Sum all the MinMaxNorm of phenotype i in all diseases
+                        int SumOfMinMaxNorm_i = 
+                            PredictionData
+                            .DiseaseDataList
+                            .Sum(d =>
+                            {
+                                var relatedEntity = d.RelatedEntities.RelatedEntitiesList
+                                .Where(p => p.Name.Equals(phenotype.Name))
+                                .FirstOrDefault();
+                                if(relatedEntity == null)
+                                {
+                                    return 0;
+                                }
+                                else
+                                {
+                                    return (int) relatedEntity
+                                    .TermFrequencies
+                                    .Where(TF => TF.TFType == TFType.MinMaxNorm)
+                                    .FirstOrDefault()
+                                    .Value;
+                                }
+                            }
+                            );
 
-
-                        //TO TEST OccTotJ (number of words)
-                        //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i)}");
                         //Compute IDFs
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic).FirstOrDefault().Value =
-                            Math.Log10((double)totalNumberOfDisease / (double)NbDisease_i);
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth).FirstOrDefault().Value =
-                            Math.Log10(1.0 + ((double)totalNumberOfDisease / (double)NbDisease_i));
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF).FirstOrDefault().Value =
-                            Math.Log10(1.0 + (((double)totalNumberOfDisease - (double)NbDisease_i) / (double)NbDisease_i));
-
-                        phenotype.Weight = ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, NbDisease_i);
+                        UpdateIDFs(phenotype, totalNumberOfDisease, NbDisease_i, SumOfMinMaxNorm_i);
 
                         //Add to already seen list
                         phenotypesAlreadySeenWithOccurences.Add(phenotype, NbDisease_i);
+
+                        //Add to already seen list
+                        phenotypesAlreadySeenWithSumOfMinMaxNorm_i.Add(phenotype, SumOfMinMaxNorm_i);
                     }
                     //If already counted
                     else
@@ -367,17 +380,9 @@ namespace CrawlerOrphanet
                         //Apply weight update
                         //Console.WriteLine("No Count");
                         //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value)}");
-                        
-                        //Compute IDFs
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic).FirstOrDefault().Value =
-                            Math.Log10((double)totalNumberOfDisease / (double)existantPhenotype[0].Value);
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth).FirstOrDefault().Value =
-                            Math.Log10(1.0 + ((double)totalNumberOfDisease / (double)existantPhenotype[0].Value));
-                        phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF).FirstOrDefault().Value =
-                            Math.Log10(1.0 + (((double)totalNumberOfDisease - (double)existantPhenotype[0].Value) / (double)existantPhenotype[0].Value));
 
-                        phenotype.Weight = ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value);
+                        //Compute IDFs
+                        UpdateIDFs(phenotype, totalNumberOfDisease, existantPhenotype[0].Value, existantPhenotypeSum[0].Value);
                     }
                 }
                 
@@ -385,7 +390,54 @@ namespace CrawlerOrphanet
             }
         }
 
-        static void Normalization(DiseasesData PredictionData)
+        static void UpdateIDFs(RelatedEntity phenotype, int totalNumberOfDisease, int NbDisease_i, int SumOfMinMaxNorm_i)
+        {
+            //IDF UNARY
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
+
+            //NbDisease_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.NbDisease_i).FirstOrDefault().Value =
+                (double)NbDisease_i;
+
+            //Inverse_NbDisease_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Inverse_NbDisease_i).FirstOrDefault().Value =
+                (double)totalNumberOfDisease / (double)NbDisease_i;
+
+            //IDF_Classic_NbDisease_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic_NbDisease_i).FirstOrDefault().Value =
+                Math.Log10((double)totalNumberOfDisease / (double)NbDisease_i);
+
+            //IDF_Smooth_NbDisease_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth_NbDisease_i).FirstOrDefault().Value =
+                Math.Log10(1.0 + ((double)totalNumberOfDisease / (double)NbDisease_i));
+
+            //Prob_IDF_NbDisease_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF_NbDisease_i).FirstOrDefault().Value =
+                Math.Log10((((double)totalNumberOfDisease - (double)NbDisease_i)) / (double)NbDisease_i);
+
+            //SumOfRawCount_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.SumOfMinMaxNorm_i).FirstOrDefault().Value =
+                (double)SumOfMinMaxNorm_i;
+
+            //Inverse_SumOfRawCount_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Inverse_SumOfMinMaxNorm_i).FirstOrDefault().Value =
+                1.0 / (double)SumOfMinMaxNorm_i;
+
+            //IDF_Classic_SumOfRawCount_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic_SumOfMinMaxNorm_i).FirstOrDefault().Value =
+                Math.Log10(1.0 / (double)SumOfMinMaxNorm_i);
+
+            //IDF_Smooth_SumOfRawCount_i
+            phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth_SumOfMinMaxNorm_i).FirstOrDefault().Value =
+                Math.Log10(1.0 + (1.0 / (double)SumOfMinMaxNorm_i));
+
+            //Prob_IDF_SumOfRawCount_i
+            //phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF_SumOfRawCount_i).FirstOrDefault().Value =
+                //Math.Log10(((1.0 - (double)SumOfRawCount_i)) / (double)SumOfRawCount_i);
+        }
+
+        //MinMax normalization on one TFsource to one TFDest
+        static void MinMaxNormalization(DiseasesData PredictionData, double NewMin, double NewMax, TFType TFTypeSource, TFType TFTypeDest)
         {
             foreach (var diseasedata in PredictionData.DiseaseDataList)
             {
@@ -393,31 +445,51 @@ namespace CrawlerOrphanet
                 if (diseasedata.RelatedEntities.RelatedEntitiesList.Count != 0)
                 {
                     //Find Min and Max for Normalization
-                    double max = diseasedata.RelatedEntities.RelatedEntitiesList.Max(x => x.Weight);
-                    double min = diseasedata.RelatedEntities.RelatedEntitiesList.Min(x => x.Weight);
-
-                    double newMax = 100.0;
-                    double newMin = 0.0;
+                    double max = diseasedata.RelatedEntities.RelatedEntitiesList.Max(x => x.TermFrequencies.Where(tf => tf.TFType == TFTypeSource).FirstOrDefault().Value);
+                    double min = diseasedata.RelatedEntities.RelatedEntitiesList.Min(x => x.TermFrequencies.Where(tf => tf.TFType == TFTypeSource).FirstOrDefault().Value);
 
                     if (max == min)
                     {
                         for (int i = 0; i < diseasedata.RelatedEntities.RelatedEntitiesList.Count; i++)
                         {
-                            diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight = 100.0;
+                            diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight = NewMax;
                         }
                     }
                     else
                     {
-                        //Symptom Weight Normalization from 0 to 100
+                        //Symptom Weight Normalization from NewMin to NewMax
                         for (int i = 0; i < diseasedata.RelatedEntities.RelatedEntitiesList.Count; i++)
                         {
-                            diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight = 
-                                newMin + (newMax - newMin) * (diseasedata.RelatedEntities.RelatedEntitiesList[i].Weight - min) / (max - min);
+                            double value = diseasedata.RelatedEntities.RelatedEntitiesList[i].TermFrequencies.Where(tf => tf.TFType == TFTypeSource).FirstOrDefault().Value;
+
+                            //UpdateValue
+                            diseasedata
+                                .RelatedEntities
+                                .RelatedEntitiesList[i]
+                                .TermFrequencies.Where(tf => tf.TFType == TFTypeDest)
+                                .FirstOrDefault()
+                                .Value =
+                                NewMin + (NewMax - NewMin) * (value - min)  / (max - min);
                         }
                     }
                 }
             }
             
+        }
+
+        static void OrderDiseaseDatas(DiseasesData PredictionData)
+        {
+            foreach (var diseasedata in PredictionData.DiseaseDataList)
+            {
+                //var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
+                if (diseasedata.RelatedEntities.RelatedEntitiesList.Count != 0)
+                {
+                    diseasedata.RelatedEntities.RelatedEntitiesList =
+                        diseasedata.RelatedEntities.RelatedEntitiesList
+                        .OrderByDescending(x => x.TermFrequencies.Where(tf => tf.TFType == TFType.RawCount).FirstOrDefault().Value)
+                        .ToList();
+                }
+            }
         }
 
         static void KeepTheBest(DiseasesData PredictionData)
@@ -430,7 +502,7 @@ namespace CrawlerOrphanet
                     //Take only a the best symptoms (see config file)
                     diseasedata.RelatedEntities.RelatedEntitiesList =
                         diseasedata.RelatedEntities.RelatedEntitiesList
-                        .OrderByDescending(x => x.Weight)
+                        .OrderByDescending(x => x.TermFrequencies.Where(tf => tf.TFType == TFType.RawCount).FirstOrDefault().Value)
                         .Take(ConfigurationManager.Instance.config.MaxNumberSymptoms)
                         .ToList();
                 }

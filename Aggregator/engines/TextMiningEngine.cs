@@ -54,7 +54,7 @@ namespace CrawlerOrphanet
 
             double maxDistance = 0.0;
             chunker = new ApproxDictionaryChunker(dict, tokenizerFactory, editDistance, maxDistance);
-
+            /*
             //////////////////////////////////////////
             //FOR HMM PREPARATION
             string pathWithoutSettings = Environment.GetEnvironmentVariable("RD_AGGREGATOR_SETTINGS").Substring(0, Environment.GetEnvironmentVariable("RD_AGGREGATOR_SETTINGS").Length - 14);
@@ -66,6 +66,7 @@ namespace CrawlerOrphanet
             chunkerHMM = (Chunker)AbstractExternalizable.readObject(modelFile);
 
             //////////////////////////////////////////
+            */
             Console.WriteLine("TextMiningEngine initialization finished");
         }
 
@@ -123,7 +124,7 @@ namespace CrawlerOrphanet
                                 1.0,
                                 symptomFromPhetotypes.Synonyms
                                 );
-
+                            myRealEntity.TermFrequencies.Where(tf => tf.TFType == TFType.RawCount).FirstOrDefault().Value = 1.0;
                             relatedEntities.Add(myRealEntity);
                         }
                         

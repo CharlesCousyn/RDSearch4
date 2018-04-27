@@ -23,7 +23,6 @@ namespace Evaluation
     public class General
     {
         public DateTime TimeStamp { get; set; }
-        public double Threshold { get; set; }
         public int NumberOfDiseasesWithKnownPhenotypes { get; set; }
         public int NumberOfDiseasesWithPublicationsInPredictionData { get; set; }
         public int NumberOfDiseasesEvaluatedForReal { get; set; }
@@ -34,17 +33,16 @@ namespace Evaluation
         public double Precision { get; set; }
         public double Recall { get; set; }
         public double F_Score { get; set; }
+        public double MeanRankRealPositives { get; set; }
 
         public General(DateTime TimeStampP,
-            double ThresholdP,
             int NumberOfDiseasesWithKnownPhenotypesP, 
             int NumberOfDiseasesWithPublicationsInPredictionDataP,
             int NumberOfDiseasesEvaluatedForRealP,
             string TypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
-            double PrecisionP, double RecallP, double F_ScoreP)
+            double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP)
         {
             TimeStamp = TimeStampP;
-            Threshold = ThresholdP;
             NumberOfDiseasesWithKnownPhenotypes = NumberOfDiseasesWithKnownPhenotypesP;
             NumberOfDiseasesWithPublicationsInPredictionData = NumberOfDiseasesWithPublicationsInPredictionDataP;
             NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;
@@ -55,6 +53,7 @@ namespace Evaluation
             Precision = PrecisionP;
             Recall = RecallP;
             F_Score = F_ScoreP;
+            MeanRankRealPositives = MeanRankRealPositivesP;
         }
     }
 
@@ -69,9 +68,11 @@ namespace Evaluation
         public double Precision { get; set; }
         public double Recall { get; set; }
         public double F_Score { get; set; }
+        public double MeanRankRealPositives { get; set; }
+        
 
         public PerDisease(string OrphaNumberP, int NumberOfPublicationsP, string TypeP, int RealPositivesP, 
-            int FalsePositivesP, int FalseNegativesP, double PrecisionP, double RecallP, double F_ScoreP)
+            int FalsePositivesP, int FalseNegativesP, double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP)
         {
             OrphaNumber = OrphaNumberP;
             NumberOfPublications = NumberOfPublicationsP;
@@ -82,6 +83,7 @@ namespace Evaluation
             Precision = PrecisionP;
             Recall = RecallP;
             F_Score = F_ScoreP;
+            MeanRankRealPositives = MeanRankRealPositivesP;
         }
     }
 

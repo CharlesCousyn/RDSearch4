@@ -26,9 +26,10 @@ namespace MongoRepository.entities
 
     public enum TFType
     {
-        Binary,
-        RawCount,
+        Binary,//0 if absent 1 if present
+        RawCount,//RawCount in disease publications
         //TF_Classic,
-        LogNorm
+        LogNorm,//log(1+RawCount)
+        MinMaxNorm//MinMax normalization between 0.0 and 1.0
     }
 }

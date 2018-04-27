@@ -24,11 +24,21 @@ namespace MongoRepository.entities
         }
     }
 
+    //NbDisease_i: Number of disease where phenotype i appears
+    //SumOfRawCount_i: Sum of RawCounts of phenotype i in all diseases
     public enum IDFType
     {
-        Unary,
-        IDF_Classic,
-        IDF_Smooth,
-        Prob_IDF
+        Unary,//Always 1.0
+        NbDisease_i,//NbDisease_i
+        Inverse_NbDisease_i,// (totalNumberOfDisease / NbDisease_i)
+        IDF_Classic_NbDisease_i,//Log10(totalNumberOfDisease / NbDisease_i);
+        IDF_Smooth_NbDisease_i,//Log10(1.0 + (totalNumberOfDisease / NbDisease_i));
+        Prob_IDF_NbDisease_i,//Log10((totalNumberOfDisease-NbDisease_i) / NbDisease_i);
+        
+        SumOfMinMaxNorm_i,//SumOfMinMaxNorm_i
+        Inverse_SumOfMinMaxNorm_i,// (1 / SumOfWeight_i)
+        IDF_Classic_SumOfMinMaxNorm_i,//Log10(1/SumOfWeight_i);
+        IDF_Smooth_SumOfMinMaxNorm_i,//Log10(1.0 + (1 / SumOfWeight_i));
+        Prob_IDF_SumOfMinMaxNorm_i,//Log10((1 - SumOfWeight_i) / SumOfWeight_i);
     }
 }

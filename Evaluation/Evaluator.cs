@@ -12,8 +12,7 @@ namespace Evaluation
     public class Evaluator
     {
         public static Results Evaluate(DiseasesData PredictionData, DiseasesData RealData,
-            Tuple<TFType, IDFType> WeightCombinaison,
-            double threshold = 0.0)
+            Tuple<TFType, IDFType> WeightCombinaison)
         {
 
             //Object to write in JSON
@@ -41,6 +40,10 @@ namespace Evaluation
                 {
                     NumberOfDiseasesEvaluatedForReal++;//Increase number of diseases evaluated
 
+                    Dictionary<RelatedEntity, double> RealWeightOfPhenotypes = new Dictionary<RelatedEntity, double>();
+                    List<RelatedEntity> RealPhenotypes = new List<RelatedEntity>();
+
+                    double MR_Disease = 0.0;//MeanRank RealPhenotype of one disease
                     int RP_Disease = 0;//RealPositive of one disease
                     int FP_Disease = 0;//FalsePositive of one disease
                     int FN_Disease = 0;//FalseNegative of one disease
@@ -57,20 +60,20 @@ namespace Evaluation
                         double realWeight = PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j]
                             .CalcFinalWeight(WeightCombinaison.Item1, WeightCombinaison.Item2);
 
+                        RealWeightOfPhenotypes.Add(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j], realWeight);
+
                         //if (threshold == 0.0 || PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Weight >= threshold)
-                        if (threshold == 0.0 || realWeight >= threshold)
+                        //Is my predicted related entity is present in the real data?
+                        if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
                         {
-                            //Is my predicted related entity is present in the real data?
-                            if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
-                            {
-                                RP++;
-                                RP_Disease++;
-                            }
-                            else
-                            {
-                                FP++;
-                                FP_Disease++;
-                            }
+                            RP++;
+                            RP_Disease++;
+                            RealPhenotypes.Add(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j]);
+                        }
+                        else
+                        {
+                            FP++;
+                            FP_Disease++;
                         }
                     }
 
@@ -78,8 +81,6 @@ namespace Evaluation
                     List<string> RelatedEntitiesNamesPred =
                         PredictionDiseaseData
                         .RelatedEntities.RelatedEntitiesList
-                        .Where(entity => threshold == 0.0 || 
-                        entity.CalcFinalWeight(WeightCombinaison.Item1, WeightCombinaison.Item2) >= threshold)
                         .Select(x => x.Name)
                         .ToList();
                     for (int j = 0; j < RealDiseaseData.RelatedEntities.RelatedEntitiesList.Count; j++)
@@ -109,6 +110,24 @@ namespace Evaluation
                         F_ScoreDisease = Math.Round(2 * PrecisionDisease * RecallDisease / (PrecisionDisease + RecallDisease), 4);
                     }
 
+                    ////////////////////
+                    //Compute MeanRank//
+                    ////////////////////
+                    
+                    //Compute Ranks
+                    Dictionary<RelatedEntity, double> RanksPhenotypes = new Dictionary<RelatedEntity, double>();
+                    RanksPhenotypes = RealWeightOfPhenotypes.OrderByDescending(p => p.Value).Select((p, i) => new KeyValuePair<RelatedEntity, double>(p.Key, i + 1.0)).ToDictionary(p=>p.Key, p=>p.Value);
+
+                    //Keep Only real Phenotypes
+                    RanksPhenotypes = 
+                        RanksPhenotypes
+                        .Where(elem => RealPhenotypes.Select(x => x.Name).ToList().IndexOf(elem.Key.Name) != -1)
+                        .ToDictionary(p => p.Key, p => p.Value);
+
+                    //MeanRank of Real Phenotypes in one disease
+                    MR_Disease = RanksPhenotypes.Average(p => p.Value);
+                      
+
                     //Construct results object
                     PerDisease OnePerDisease = new PerDisease(orphaNumber,
                         PredictionDiseaseData.Disease.NumberOfPublications, 
@@ -118,7 +137,8 @@ namespace Evaluation
                         FN_Disease,
                         PrecisionDisease,//Precision
                         RecallDisease, //Recall
-                        F_ScoreDisease
+                        F_ScoreDisease,
+                        MR_Disease
                         );
 
                     results.perDisease.Add(OnePerDisease);
@@ -143,10 +163,13 @@ namespace Evaluation
                 F_Score = Math.Round(2 * Precision * Recall / (Precision + Recall), 4);
             }
 
+            //Compute MeanRank general
+            double MR = 0.0;//MeanRank RealPhenotype general
+            MR = results.perDisease.Average(pd => pd.MeanRankRealPositives);
+
             //Construct results object
             results.general = new General(
                 DateTime.Now,
-                threshold,
                 NumberOfDiseasesWithKnownPhenotypes,
                 NumberOfDiseasesWithPublicationsInPredictionData,
                 NumberOfDiseasesEvaluatedForReal,
@@ -156,7 +179,8 @@ namespace Evaluation
                 FN,  
                 Precision,  
                 Recall, 
-                F_Score);
+                F_Score,
+                MR);
 
             return results;
         }
@@ -194,7 +218,7 @@ namespace Evaluation
 
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
         }
-
+        /*
         public static MetaResults MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, Tuple<TFType, IDFType> WeightCombinaison, double minWeight, double maxWeight, double step, Criterion criterion)
         {
             //Create MetaResult
@@ -249,7 +273,7 @@ namespace Evaluation
                 );
 
             return metaResults;
-        }
+        }*/
 
         public static void WriteMetaResultsJSONFile(
             MetaResults metaResults,
@@ -278,21 +302,36 @@ namespace Evaluation
             }
         }
 
-        public static List<MetaResults> EvaluateMultipleFormulas(
+        public static void WriteListOfResultsJSONFile(List<Results> listResults)
+        {
+            foreach (var Results in listResults)
+            {
+                WriteResultsJSONFile(Results);
+            }
+        }
+
+        public static List<Results> EvaluateMultipleFormulas(
             DiseasesData PredictionData, 
             DiseasesData RealData,
-            double minWeight, 
-            double maxWeight, 
-            double step,
-            Criterion criterion)
+            params Tuple<TFType, IDFType>[] Combinaisons)
         {
-            List<MetaResults> listMetaResults = new List<MetaResults>();
-            List<Tuple<TFType, IDFType>> ListOfWeightCombinaisons = GenerateDisctinctsTupleForWeightComputation();
-            foreach(var element in ListOfWeightCombinaisons)
+            List<Results> listResults = new List<Results>();
+            if(Combinaisons.Length == 0)
             {
-                listMetaResults.Add(MetaEvaluate(PredictionData, RealData, element, minWeight, maxWeight, step, criterion));
+                List<Tuple<TFType, IDFType>> ListOfWeightCombinaisons = GenerateDisctinctsTupleForWeightComputation();
+                foreach (var element in ListOfWeightCombinaisons)
+                {
+                    listResults.Add(Evaluate(PredictionData, RealData, element));
+                }
             }
-            return listMetaResults;
+            else
+            {
+                foreach (var element in Combinaisons)
+                {
+                    listResults.Add(Evaluate(PredictionData, RealData, element));
+                }
+            }
+            return listResults;
         }
     }
 }
