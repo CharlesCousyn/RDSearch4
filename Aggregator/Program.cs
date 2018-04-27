@@ -155,8 +155,8 @@ namespace CrawlerOrphanet
             {
                 try
                 {
-                    //Cut in 10 parts
-                    int numberOfDocument = 10;
+                    //Cut in 20 parts
+                    int numberOfDocument = 20;
                     int numberDiseases = listDiseaseData.Count / numberOfDocument;
                     int rest = listDiseaseData.Count % numberOfDocument;
 
