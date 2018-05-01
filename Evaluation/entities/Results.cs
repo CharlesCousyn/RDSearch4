@@ -1,4 +1,7 @@
-﻿using System;
+﻿using MongoRepository.entities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -26,7 +29,13 @@ namespace Evaluation
         public int NumberOfDiseasesWithKnownPhenotypes { get; set; }
         public int NumberOfDiseasesWithPublicationsInPredictionData { get; set; }
         public int NumberOfDiseasesEvaluatedForReal { get; set; }
-        public string Type { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public type Type { get; set; }
+        public double MeanNumberOfRelatedEntitiesFound { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public TFType TFType { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public IDFType IDFType { get; set; }
         public int RealPositives { get; set; }
         public int FalsePositives { get; set; }
         public int FalseNegatives { get; set; }
@@ -39,7 +48,7 @@ namespace Evaluation
             int NumberOfDiseasesWithKnownPhenotypesP, 
             int NumberOfDiseasesWithPublicationsInPredictionDataP,
             int NumberOfDiseasesEvaluatedForRealP,
-            string TypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
+            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
             double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP)
         {
             TimeStamp = TimeStampP;
@@ -47,6 +56,9 @@ namespace Evaluation
             NumberOfDiseasesWithPublicationsInPredictionData = NumberOfDiseasesWithPublicationsInPredictionDataP;
             NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;
             Type = TypeP;
+            MeanNumberOfRelatedEntitiesFound = MeanNumberOfRelatedEntitiesFoundP;
+            TFType = TFTypeP;
+            IDFType = IDFTypeP;
             RealPositives = RealPositivesP;
             FalsePositives = FalsePositivesP;
             FalseNegatives = FalseNegativesP;
@@ -61,7 +73,9 @@ namespace Evaluation
     {
         public string OrphaNumber { get; set; }
         public int NumberOfPublications { get; set; }
-        public string Type { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public type Type { get; set; }
+        public int NumberOfRelatedEntitiesFound { get; set; }
         public int RealPositives { get; set; }
         public int FalsePositives { get; set; }
         public int FalseNegatives { get; set; }
@@ -71,12 +85,13 @@ namespace Evaluation
         public double MeanRankRealPositives { get; set; }
         
 
-        public PerDisease(string OrphaNumberP, int NumberOfPublicationsP, string TypeP, int RealPositivesP, 
+        public PerDisease(string OrphaNumberP, int NumberOfPublicationsP, type TypeP, int NumberOfRelatedEntitiesFoundP, int RealPositivesP, 
             int FalsePositivesP, int FalseNegativesP, double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP)
         {
             OrphaNumber = OrphaNumberP;
             NumberOfPublications = NumberOfPublicationsP;
             Type = TypeP;
+            NumberOfRelatedEntitiesFound = NumberOfRelatedEntitiesFoundP;
             RealPositives = RealPositivesP;
             FalsePositives = FalsePositivesP;
             FalseNegatives = FalseNegativesP;

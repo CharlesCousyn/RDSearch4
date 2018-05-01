@@ -11,77 +11,116 @@ namespace Evaluation.entities
 {
     public class MetaResults
     {
-        [JsonConverter(typeof(StringEnumConverter))]
-        public TFType TFType;
-        [JsonConverter(typeof(StringEnumConverter))]
-        public IDFType IDFType;
         public BestInfos bestInfos { get; set; }
-        public List<PerThreshold> perThreshold { get; set; }
+        public List<PerCombinaison> perCombinaison { get; set; }
 
-        public MetaResults(TFType TFTypeP, IDFType IDFTypeP, BestInfos bestInfosP, List<PerThreshold> perThresholdP)
+        public MetaResults(BestInfos bestInfosP, List<PerCombinaison> perCombinaisonP)
         {
-            TFType = TFTypeP;
-            IDFType = IDFTypeP;
             bestInfos = bestInfosP;
-            perThreshold = perThresholdP;
+            perCombinaison = perCombinaisonP;
         }
-        public MetaResults(TFType TFTypeP, IDFType IDFTypeP)
+        public MetaResults()
         {
-            TFType = TFTypeP;
-            IDFType = IDFTypeP;
-            perThreshold = new List<PerThreshold>();
+            perCombinaison = new List<PerCombinaison>();
         }
     }
 
     public class BestInfos
     {
         public DateTime TimeStamp { get; set; }
-        public string Type { get; set; }
-        public double Best_Threshold { get; set; }
-        public double Best_Precision { get; set; }
-        public double Best_Recall { get; set; }
-        public double Best_F_Score { get; set; }
-
+        public int NumberOfDiseasesWithKnownPhenotypes { get; set; }
+        public int NumberOfDiseasesWithPublicationsInPredictionData { get; set; }
+        public int NumberOfDiseasesEvaluatedForReal { get; set; }
         [JsonConverter(typeof(StringEnumConverter))]
-        public Criterion Criterion { get; set; }
-
-        public BestInfos(DateTime TimeStampP,
-            string TypeP, double Best_ThresholdP,
-            double Best_PrecisionP, double Best_RecallP, double Best_F_ScoreP,
-            Criterion CriterionP)
-        {
-            TimeStamp = TimeStampP;
-            Type = TypeP;
-            Best_Threshold = Best_ThresholdP;
-            Best_Precision = Best_PrecisionP;
-            Best_Recall = Best_RecallP;
-            Best_F_Score = Best_F_ScoreP;
-            Criterion = CriterionP;
-        }
-    }
-
-    public class PerThreshold
-    {
-        public double Threshold { get; set; }
-        public string Type { get; set; }
+        public type Type { get; set; }
+        public double MeanNumberOfRelatedEntitiesFound { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public TFType TFType;
+        [JsonConverter(typeof(StringEnumConverter))]
+        public IDFType IDFType;
         public int RealPositives { get; set; }
         public int FalsePositives { get; set; }
         public int FalseNegatives { get; set; }
         public double Precision { get; set; }
         public double Recall { get; set; }
         public double F_Score { get; set; }
+        public double MeanRankRealPositives { get; set; }
 
-        public PerThreshold(double ThresholdP, string TypeP, int RealPositivesP,
-            int FalsePositivesP, int FalseNegativesP, double PrecisionP, double RecallP, double F_ScoreP)
+        [JsonConverter(typeof(StringEnumConverter))]
+        public Criterion Criterion { get; set; }
+
+        public BestInfos(DateTime TimeStampP,
+            int NumberOfDiseasesWithKnownPhenotypesP,
+            int NumberOfDiseasesWithPublicationsInPredictionDataP,
+            int NumberOfDiseasesEvaluatedForRealP,
+            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP,
+            double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP, Criterion CriterionP)
         {
-            Threshold = ThresholdP;
+            TimeStamp = TimeStampP;
+            NumberOfDiseasesWithKnownPhenotypes = NumberOfDiseasesWithKnownPhenotypesP;
+            NumberOfDiseasesWithPublicationsInPredictionData = NumberOfDiseasesWithPublicationsInPredictionDataP;
+            NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;
             Type = TypeP;
+            MeanNumberOfRelatedEntitiesFound = MeanNumberOfRelatedEntitiesFoundP;
+            TFType = TFTypeP;
+            IDFType = IDFTypeP;
             RealPositives = RealPositivesP;
             FalsePositives = FalsePositivesP;
             FalseNegatives = FalseNegativesP;
             Precision = PrecisionP;
             Recall = RecallP;
             F_Score = F_ScoreP;
+            MeanRankRealPositives = MeanRankRealPositivesP;
+            Criterion = CriterionP;
+        }
+    }
+
+    public class PerCombinaison
+    {
+        public DateTime TimeStamp { get; set; }
+        public int NumberOfDiseasesWithKnownPhenotypes { get; set; }
+        public int NumberOfDiseasesWithPublicationsInPredictionData { get; set; }
+        public int NumberOfDiseasesEvaluatedForReal { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public type Type { get; set; }
+        public double MeanNumberOfRelatedEntitiesFound { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public TFType TFType;
+        [JsonConverter(typeof(StringEnumConverter))]
+        public IDFType IDFType;
+        public int RealPositives { get; set; }
+        public int FalsePositives { get; set; }
+        public int FalseNegatives { get; set; }
+        public double Precision { get; set; }
+        public double Recall { get; set; }
+        public double F_Score { get; set; }
+        public double MeanRankRealPositives { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public Criterion Criterion { get; set; }
+
+        public PerCombinaison(DateTime TimeStampP,
+            int NumberOfDiseasesWithKnownPhenotypesP,
+            int NumberOfDiseasesWithPublicationsInPredictionDataP,
+            int NumberOfDiseasesEvaluatedForRealP,
+            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP,
+            double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP, Criterion CriterionP)
+        {
+            TimeStamp = TimeStampP;
+            NumberOfDiseasesWithKnownPhenotypes = NumberOfDiseasesWithKnownPhenotypesP;
+            NumberOfDiseasesWithPublicationsInPredictionData = NumberOfDiseasesWithPublicationsInPredictionDataP;
+            NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;
+            Type = TypeP;
+            MeanNumberOfRelatedEntitiesFound = MeanNumberOfRelatedEntitiesFoundP;
+            TFType = TFTypeP;
+            IDFType = IDFTypeP;
+            RealPositives = RealPositivesP;
+            FalsePositives = FalsePositivesP;
+            FalseNegatives = FalseNegativesP;
+            Precision = PrecisionP;
+            Recall = RecallP;
+            F_Score = F_ScoreP;
+            MeanRankRealPositives = MeanRankRealPositivesP;
+            Criterion = CriterionP;
         }
     }
 
@@ -89,6 +128,7 @@ namespace Evaluation.entities
     {
         F_Score,
         Precision,
-        Recall
+        Recall,
+        MeanRankRealPositives
     }
 }

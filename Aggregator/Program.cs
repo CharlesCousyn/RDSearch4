@@ -37,7 +37,7 @@ namespace CrawlerOrphanet
             List<Disease> lst_diseases = new List<Disease>();
             using (var db = new MongoRepository.DiseaseRepository())
             {
-                lst_diseases = db.selectAll().Take(10).ToList();
+                lst_diseases = db.selectAll().Take(100).ToList();
                 //lst_diseases = db.selectAll();
             }
             
@@ -85,16 +85,16 @@ namespace CrawlerOrphanet
                 RealData = dbReal.selectByType(type.Symptom);
             }
 
-            /*
+            
             //Evaluation...
             if (PredictionData != null && RealData != null)
             {
                 Console.WriteLine("Evaluation....");
-                Evaluator.WriteListOfResultsJSONFile(
-                    Evaluator.EvaluateMultipleFormulas(PredictionData,RealData));
+                Evaluator.WriteMetaResultsJSONFile(
+                    Evaluator.MetaEvaluate(PredictionData,RealData, Evaluation.entities.Criterion.MeanRankRealPositives));
 
                 Console.WriteLine("Evaluation finished!");
-            }*/
+            }
 
 
             Console.WriteLine("Finished :)");
@@ -151,12 +151,13 @@ namespace CrawlerOrphanet
 
         static void InsertPredictionInDB(List<DiseaseData> listDiseaseData, MongoRepository.PredictionDataRepository predictionDataRepository)
         {
+            Console.WriteLine("InsertPredictionInDB start...");
             if (listDiseaseData.Count != 0)
             {
                 try
                 {
-                    //Cut in 20 parts
-                    int numberOfDocument = 20;
+                    //Cut in 1000 parts
+                    int numberOfDocument = 1000;
                     int numberDiseases = listDiseaseData.Count / numberOfDocument;
                     int rest = listDiseaseData.Count % numberOfDocument;
 
@@ -197,6 +198,7 @@ namespace CrawlerOrphanet
 
                 }
             }
+            Console.WriteLine("InsertPredictionInDB finished!");
         }
         static void LaunchBatchs_Recup_Count(
             int nombreBatch, //Batch config
@@ -283,6 +285,7 @@ namespace CrawlerOrphanet
             DiseasesData PredictionData //Var to UPDATE
             )
         {
+            Console.WriteLine("Compute_TF_IDF_Terms_ToAllDiseaseData start...");
             int totalNumberOfDisease = PredictionData.DiseaseDataList.Count;
 
             //Get list of NbDisease_i (Number of disease where symptom i appears)
@@ -388,6 +391,8 @@ namespace CrawlerOrphanet
                 
                 countDisease++;
             }
+
+            Console.WriteLine("Compute_TF_IDF_Terms_ToAllDiseaseData finished");
         }
 
         static void UpdateIDFs(RelatedEntity phenotype, int totalNumberOfDisease, int NbDisease_i, double SumOfMinMaxNorm_i)
@@ -439,6 +444,7 @@ namespace CrawlerOrphanet
         //MinMax normalization on one TFsource to one TFDest
         static void MinMaxNormalization(DiseasesData PredictionData, double NewMin, double NewMax, TFType TFTypeSource, TFType TFTypeDest)
         {
+            Console.WriteLine("MinMaxNormalization start...");
             foreach (var diseasedata in PredictionData.DiseaseDataList)
             {
                 //var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
@@ -474,11 +480,12 @@ namespace CrawlerOrphanet
                     }
                 }
             }
-            
+            Console.WriteLine("MinMaxNormalization finished!");
         }
 
         static void OrderDiseaseDatas(DiseasesData PredictionData)
         {
+            Console.WriteLine("OrderDiseaseDatas start...");
             foreach (var diseasedata in PredictionData.DiseaseDataList)
             {
                 //var relatedEntities = diseasedata.RelatedEntities.RelatedEntitiesList;
@@ -490,6 +497,7 @@ namespace CrawlerOrphanet
                         .ToList();
                 }
             }
+            Console.WriteLine("OrderDiseaseDatas finished");
         }
 
         static void KeepTheBest(DiseasesData PredictionData)

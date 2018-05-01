@@ -54,8 +54,9 @@ namespace Evaluation
                         .RelatedEntities.RelatedEntitiesList
                         .Select(x => x.Name)
                         .ToList();
+                    int NumberOfRelatedEntitiesFound = PredictionDiseaseData.RelatedEntities.RelatedEntitiesList.Count;
 
-                    for (int j = 0; j < PredictionDiseaseData.RelatedEntities.RelatedEntitiesList.Count; j++)
+                    for (int j = 0; j < NumberOfRelatedEntitiesFound; j++)
                     {
                         double realWeight = PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j]
                             .CalcFinalWeight(WeightCombinaison.Item1, WeightCombinaison.Item2);
@@ -94,9 +95,9 @@ namespace Evaluation
                     }
 
                     //Compute Precision/recall and F_score
-                    double PrecisionDisease=0.0;
-                    double RecallDisease=0.0;
-                    double F_ScoreDisease=0.0;
+                    double PrecisionDisease = 0.0;
+                    double RecallDisease = 0.0;
+                    double F_ScoreDisease = 0.0;
                     if (RP_Disease + FP_Disease != 0)
                     {
                         PrecisionDisease = Math.Round((double)RP_Disease / (double)(RP_Disease + FP_Disease), 4);
@@ -125,13 +126,17 @@ namespace Evaluation
                         .ToDictionary(p => p.Key, p => p.Value);
 
                     //MeanRank of Real Phenotypes in one disease
-                    MR_Disease = RanksPhenotypes.Average(p => p.Value);
+                    if(RanksPhenotypes.Count != 0)
+                    {
+                        MR_Disease = RanksPhenotypes.Average(p => p.Value);
+                    }
                       
 
                     //Construct results object
                     PerDisease OnePerDisease = new PerDisease(orphaNumber,
                         PredictionDiseaseData.Disease.NumberOfPublications, 
-                        PredictionData.Type.ToString(),
+                        PredictionData.Type,
+                        NumberOfRelatedEntitiesFound,
                         RP_Disease, 
                         FP_Disease, 
                         FN_Disease,
@@ -165,7 +170,13 @@ namespace Evaluation
 
             //Compute MeanRank general
             double MR = 0.0;//MeanRank RealPhenotype general
-            MR = results.perDisease.Average(pd => pd.MeanRankRealPositives);
+
+            //Filter PerDisease where MeanRankRealPositives = 0.0
+            List<PerDisease> perdiseasesFiltered = results.perDisease.Where(pd => pd.MeanRankRealPositives != 0.0).ToList();
+            MR = perdiseasesFiltered.Average(pd => pd.MeanRankRealPositives);
+
+            //Compute MeanNumberOfRelatedEntitiesFound
+            double MeanNumberOfRelatedEntitiesFound = results.perDisease.Average(pd => pd.NumberOfRelatedEntitiesFound);
 
             //Construct results object
             results.general = new General(
@@ -173,7 +184,10 @@ namespace Evaluation
                 NumberOfDiseasesWithKnownPhenotypes,
                 NumberOfDiseasesWithPublicationsInPredictionData,
                 NumberOfDiseasesEvaluatedForReal,
-                PredictionData.Type.ToString(), 
+                PredictionData.Type,
+                MeanNumberOfRelatedEntitiesFound,
+                WeightCombinaison.Item1,
+                WeightCombinaison.Item2,
                 RP, 
                 FP, 
                 FN,  
@@ -275,9 +289,97 @@ namespace Evaluation
             return metaResults;
         }*/
 
+        public static MetaResults MetaEvaluate(DiseasesData PredictionData, DiseasesData RealData, Criterion criterion, params Tuple<TFType, IDFType>[] WeightCombinaisons)
+        {
+            //Create MetaResult
+            MetaResults metaResults = new MetaResults();
+
+            //Compute all results and put them in metaResults
+            List<Results> listResults = new List<Results>();
+
+            //If not precised, we generate
+            if(WeightCombinaisons.Length == 0)
+            {
+                WeightCombinaisons = GenerateDisctinctsTupleForWeightComputation().ToArray();
+            }
+
+            foreach (var tuple in WeightCombinaisons)
+            {
+                Results currentRes = Evaluate(PredictionData, RealData, tuple);
+                listResults.Add(currentRes);
+                metaResults.perCombinaison.Add(
+                    new PerCombinaison(
+                        currentRes.general.TimeStamp,
+                        currentRes.general.NumberOfDiseasesWithKnownPhenotypes,
+                        currentRes.general.NumberOfDiseasesWithPublicationsInPredictionData,
+                        currentRes.general.NumberOfDiseasesEvaluatedForReal,
+                        currentRes.general.Type,
+                        currentRes.general.MeanNumberOfRelatedEntitiesFound,
+                        currentRes.general.TFType,
+                        currentRes.general.IDFType,
+                        currentRes.general.RealPositives,
+                        currentRes.general.FalsePositives,
+                        currentRes.general.FalseNegatives,
+                        currentRes.general.Precision,
+                        currentRes.general.Recall,
+                        currentRes.general.F_Score,
+                        currentRes.general.MeanRankRealPositives,
+                        criterion
+                        ));
+            }
+
+            //Find best results and sort by perCombinaison
+            Results Best_Result;
+            switch (criterion)
+            {
+                case Criterion.MeanRankRealPositives:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.MeanRankRealPositives < savedRes.general.MeanRankRealPositives ? currentRes : savedRes);
+                    metaResults.perCombinaison = metaResults.perCombinaison.OrderBy(pc => pc.MeanRankRealPositives).ToList();
+                    break;
+                case Criterion.F_Score:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.F_Score > savedRes.general.F_Score ? currentRes : savedRes);
+                    metaResults.perCombinaison = metaResults.perCombinaison.OrderByDescending(pc => pc.F_Score).ToList();
+                    break;
+                case Criterion.Precision:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.Precision > savedRes.general.Precision ? currentRes : savedRes);
+                    metaResults.perCombinaison = metaResults.perCombinaison.OrderByDescending(pc => pc.Precision).ToList();
+                    break;
+                case Criterion.Recall:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.Recall > savedRes.general.Recall ? currentRes : savedRes);
+                    metaResults.perCombinaison = metaResults.perCombinaison.OrderByDescending(pc => pc.Recall).ToList();
+                    break;
+                default:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.MeanRankRealPositives < savedRes.general.MeanRankRealPositives ? currentRes : savedRes);
+                    metaResults.perCombinaison = metaResults.perCombinaison.OrderBy(pc => pc.MeanRankRealPositives).ToList();
+                    break;
+            }
+
+            //Complete metaResults
+            metaResults.bestInfos = new BestInfos(
+                    Best_Result.general.TimeStamp,
+                        Best_Result.general.NumberOfDiseasesWithKnownPhenotypes,
+                        Best_Result.general.NumberOfDiseasesWithPublicationsInPredictionData,
+                        Best_Result.general.NumberOfDiseasesEvaluatedForReal,
+                        Best_Result.general.Type,
+                        Best_Result.general.MeanNumberOfRelatedEntitiesFound,
+                        Best_Result.general.TFType,
+                        Best_Result.general.IDFType,
+                        Best_Result.general.RealPositives,
+                        Best_Result.general.FalsePositives,
+                        Best_Result.general.FalseNegatives,
+                        Best_Result.general.Precision,
+                        Best_Result.general.Recall,
+                        Best_Result.general.F_Score,
+                        Best_Result.general.MeanRankRealPositives,
+                        criterion
+                );
+
+            return metaResults;
+        }
+
         public static void WriteMetaResultsJSONFile(
-            MetaResults metaResults,
-            string wantedFileName = "")
+        MetaResults metaResults,
+        string wantedFileName = "")
         {
             string output = JsonConvert.SerializeObject(metaResults, Formatting.Indented);
 
@@ -289,7 +391,7 @@ namespace Evaluation
             }
             else
             {
-                fileName = $"metaResults_{metaResults.bestInfos.TimeStamp.ToString("yyyy-MM-dd_HH-mm-ss")}_{metaResults.TFType.ToString()}_{metaResults.IDFType.ToString()}.json";
+                fileName = $"metaResults_{metaResults.bestInfos.TimeStamp.ToString("yyyy-MM-dd_HH-mm-ss")}.json";
             }
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
         }
@@ -304,6 +406,7 @@ namespace Evaluation
 
         public static void WriteListOfResultsJSONFile(List<Results> listResults)
         {
+            Console.WriteLine($"listResults.Count: {listResults.Count}");
             foreach (var Results in listResults)
             {
                 WriteResultsJSONFile(Results);
