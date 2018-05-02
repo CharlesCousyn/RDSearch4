@@ -132,20 +132,16 @@ namespace CrawlerOrphanet
                 }
 
             }
-            
+
             /*
-
-            //Sort related entities by descending weight
-            PredictionData.RelatedEntities.RelatedEntitiesList.OrderByDescending(x=>x.Weight).ToList();
-
-            //Take only a the best symptoms (see config file)
+            //Sort and Take only a the best symptoms (see config file)
             PredictionData.RelatedEntities.RelatedEntitiesList =
                 PredictionData.RelatedEntities.RelatedEntitiesList
-                .OrderByDescending(x => x.Weight)
+                .OrderByDescending(x => x.TermFrequencies.Where(tf => tf.TFType == TFType.RawCount).FirstOrDefault().Value)
                 .Take(ConfigurationManager.Instance.config.MaxNumberSymptoms)
                 .ToList();
-
             */
+
             /*
             ///TEEEEEEEEEEEST
             extractedSymptoms = new List<Symptom>();
