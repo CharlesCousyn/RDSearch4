@@ -32,6 +32,7 @@ namespace Evaluation
         [JsonConverter(typeof(StringEnumConverter))]
         public type Type { get; set; }
         public double MeanNumberOfRelatedEntitiesFound { get; set; }
+        public double StandardDeviationNumberOfRelatedEntitiesFound { get; set; }
         [JsonConverter(typeof(StringEnumConverter))]
         public TFType TFType { get; set; }
         [JsonConverter(typeof(StringEnumConverter))]
@@ -43,13 +44,14 @@ namespace Evaluation
         public double Recall { get; set; }
         public double F_Score { get; set; }
         public double MeanRankRealPositives { get; set; }
+        public double StandardDeviationRankRealPositivesGeneral { get; set; }
 
         public General(DateTime TimeStampP,
             int NumberOfDiseasesWithKnownPhenotypesP, 
             int NumberOfDiseasesWithPublicationsInPredictionDataP,
             int NumberOfDiseasesEvaluatedForRealP,
-            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
-            double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP)
+            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, double StandardDeviationNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
+            double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP, double StandardDeviationRankRealPositivesGeneralP)
         {
             TimeStamp = TimeStampP;
             NumberOfDiseasesWithKnownPhenotypes = NumberOfDiseasesWithKnownPhenotypesP;
@@ -57,6 +59,7 @@ namespace Evaluation
             NumberOfDiseasesEvaluatedForReal = NumberOfDiseasesEvaluatedForRealP;
             Type = TypeP;
             MeanNumberOfRelatedEntitiesFound = MeanNumberOfRelatedEntitiesFoundP;
+            StandardDeviationNumberOfRelatedEntitiesFound = StandardDeviationNumberOfRelatedEntitiesFoundP;
             TFType = TFTypeP;
             IDFType = IDFTypeP;
             RealPositives = RealPositivesP;
@@ -66,6 +69,7 @@ namespace Evaluation
             Recall = RecallP;
             F_Score = F_ScoreP;
             MeanRankRealPositives = MeanRankRealPositivesP;
+            StandardDeviationRankRealPositivesGeneral = StandardDeviationRankRealPositivesGeneralP;
         }
     }
 

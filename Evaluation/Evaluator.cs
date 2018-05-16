@@ -54,6 +54,7 @@ namespace Evaluation
                         .RelatedEntities.RelatedEntitiesList
                         .Select(x => x.Name)
                         .ToList();
+
                     int NumberOfRelatedEntitiesFound = PredictionDiseaseData.RelatedEntities.RelatedEntitiesList.Count;
 
                     for (int j = 0; j < NumberOfRelatedEntitiesFound; j++)
@@ -169,14 +170,36 @@ namespace Evaluation
             }
 
             //Compute MeanRank general
-            double MR = 0.0;//MeanRank RealPhenotype general
+            double MeanRankRealPositiveGeneral = 0.0;//MeanRank RealPhenotype general
 
             //Filter PerDisease where MeanRankRealPositives = 0.0
             List<PerDisease> perdiseasesFiltered = results.perDisease.Where(pd => pd.MeanRankRealPositives != 0.0).ToList();
-            MR = perdiseasesFiltered.Average(pd => pd.MeanRankRealPositives);
+            MeanRankRealPositiveGeneral = perdiseasesFiltered.Average(pd => pd.MeanRankRealPositives);
+
+            //Compute standard deviation
+            double StandardDeviationRankRealPositivesGeneral = 0.0;
+            StandardDeviationRankRealPositivesGeneral =
+                Math.Sqrt
+                (
+                    perdiseasesFiltered.Average
+                    (
+                        pd => Math.Pow(pd.MeanRankRealPositives - MeanRankRealPositiveGeneral, 2)
+                    )
+                );
+
 
             //Compute MeanNumberOfRelatedEntitiesFound
             double MeanNumberOfRelatedEntitiesFound = results.perDisease.Average(pd => pd.NumberOfRelatedEntitiesFound);
+
+            //Compute standard deviation
+            double StandardDeviationNumberOfRelatedEntitiesFound = 
+                Math.Sqrt
+                (
+                    results.perDisease.Average
+                    (
+                        pd => Math.Pow(pd.NumberOfRelatedEntitiesFound - MeanNumberOfRelatedEntitiesFound, 2)
+                    )
+                );
 
             //Construct results object
             results.general = new General(
@@ -186,6 +209,7 @@ namespace Evaluation
                 NumberOfDiseasesEvaluatedForReal,
                 PredictionData.Type,
                 MeanNumberOfRelatedEntitiesFound,
+                StandardDeviationNumberOfRelatedEntitiesFound,
                 WeightCombinaison.Item1,
                 WeightCombinaison.Item2,
                 RP, 
@@ -194,7 +218,8 @@ namespace Evaluation
                 Precision,  
                 Recall, 
                 F_Score,
-                MR);
+                MeanRankRealPositiveGeneral,
+                StandardDeviationRankRealPositivesGeneral);
 
             return results;
         }
@@ -315,6 +340,7 @@ namespace Evaluation
                         currentRes.general.NumberOfDiseasesEvaluatedForReal,
                         currentRes.general.Type,
                         currentRes.general.MeanNumberOfRelatedEntitiesFound,
+                        currentRes.general.StandardDeviationNumberOfRelatedEntitiesFound,
                         currentRes.general.TFType,
                         currentRes.general.IDFType,
                         currentRes.general.RealPositives,
@@ -324,6 +350,7 @@ namespace Evaluation
                         currentRes.general.Recall,
                         currentRes.general.F_Score,
                         currentRes.general.MeanRankRealPositives,
+                        currentRes.general.StandardDeviationRankRealPositivesGeneral,
                         criterion
                         ));
             }
@@ -362,6 +389,7 @@ namespace Evaluation
                         Best_Result.general.NumberOfDiseasesEvaluatedForReal,
                         Best_Result.general.Type,
                         Best_Result.general.MeanNumberOfRelatedEntitiesFound,
+                        Best_Result.general.StandardDeviationNumberOfRelatedEntitiesFound,
                         Best_Result.general.TFType,
                         Best_Result.general.IDFType,
                         Best_Result.general.RealPositives,
@@ -371,6 +399,7 @@ namespace Evaluation
                         Best_Result.general.Recall,
                         Best_Result.general.F_Score,
                         Best_Result.general.MeanRankRealPositives,
+                        Best_Result.general.StandardDeviationRankRealPositivesGeneral,
                         criterion
                 );
 
