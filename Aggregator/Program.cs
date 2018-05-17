@@ -69,6 +69,7 @@ namespace CrawlerOrphanet
 
 
             //Retrieving related entities by disease AND TextMine
+            
             TextMiningEngine textMiningEngine = new TextMiningEngine();
             RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);
             //RecupLinkedDiseasesAndTextMine(lst_diseases, textMiningEngine);
@@ -313,15 +314,12 @@ namespace CrawlerOrphanet
                     //TF LogNorm
                     phenotype.TermFrequencies.Where(TF => TF.TFType == TFType.LogNorm).FirstOrDefault().Value = Math.Log10(1 + rawCount);
 
-                    ////////////////
-                    //Compute IDFs//
-                    ////////////////
+                    //////////////////////////
+                    //Prepare Computing IDFs//
+                    //////////////////////////
 
                     //Find the phenotype in alreadyseen phenotypes
                     List<KeyValuePair<RelatedEntity, int>> existantPhenotype = phenotypesAlreadySeenWithOccurences
-                        .Where(p => p.Key.Name.Equals(phenotype.Name))
-                        .ToList();
-                    List<KeyValuePair<RelatedEntity, double>> existantPhenotypeSum = phenotypesAlreadySeenWithSumOfMinMaxNorm_i
                         .Where(p => p.Key.Name.Equals(phenotype.Name))
                         .ToList();
 
@@ -338,6 +336,7 @@ namespace CrawlerOrphanet
                                 .RelatedEntitiesList
                                 .Any(p => p.Name.Equals(phenotype.Name))
                             );
+
                         //Sum all the MinMaxNorm of phenotype i in all diseases
                         double SumOfMinMaxNorm_i =
                             PredictionData
@@ -362,24 +361,11 @@ namespace CrawlerOrphanet
                             }
                             );
 
-                        //Compute IDFs
-                        UpdateIDFs(phenotype, totalNumberOfDisease, NbDisease_i, SumOfMinMaxNorm_i);
-
                         //Add to already seen list
                         phenotypesAlreadySeenWithOccurences.Add(phenotype, NbDisease_i);
 
                         //Add to already seen list
                         phenotypesAlreadySeenWithSumOfMinMaxNorm_i.Add(phenotype, SumOfMinMaxNorm_i);
-                    }
-                    //If already counted
-                    else
-                    {
-                        //Apply weight update
-                        //Console.WriteLine("No Count");
-                        //Console.WriteLine($"From {phenotype.Weight}\t to {ToTF_IDF(phenotype.Weight, 1.0, totalNumberOfDisease, existantPhenotype[0].Value)}");
-
-                        //Compute IDFs
-                        UpdateIDFs(phenotype, totalNumberOfDisease, existantPhenotype[0].Value, existantPhenotypeSum[0].Value);
                     }
                 }
 
@@ -391,10 +377,45 @@ namespace CrawlerOrphanet
 
             }
 
-            Console.WriteLine("Compute_TF_IDF_Terms_ToAllDiseaseData finished");
+            //UPDATE IDFs
+            double TotalOfSumMinMaxNorm = phenotypesAlreadySeenWithSumOfMinMaxNorm_i.Sum(p => p.Value);
+
+            //TimeLeft initialization
+            TimeLeft.Instance.Reset();
+            TimeLeft.Instance.operationsToDo = totalNumberOfDisease;
+            countDisease = 0;
+            foreach (var diseasedata in PredictionData.DiseaseDataList)
+            {
+                Stopwatch diffTime = new Stopwatch();
+                diffTime.Start();
+
+                foreach (var phenotype in diseasedata.RelatedEntities.RelatedEntitiesList)
+                {
+                    //Find the phenotype in alreadyseen phenotypes
+                    List<KeyValuePair<RelatedEntity, int>> existantPhenotype = phenotypesAlreadySeenWithOccurences
+                        .Where(p => p.Key.Name.Equals(phenotype.Name))
+                        .ToList();
+                    List<KeyValuePair<RelatedEntity, double>> existantPhenotypeSum = phenotypesAlreadySeenWithSumOfMinMaxNorm_i
+                        .Where(p => p.Key.Name.Equals(phenotype.Name))
+                        .ToList();
+
+                    if (existantPhenotype.Count != 0)
+                    {
+                        UpdateIDFs(phenotype, totalNumberOfDisease, existantPhenotype[0].Value, TotalOfSumMinMaxNorm, existantPhenotypeSum[0].Value);
+                    }
+                }
+
+                diffTime.Stop();
+                TimeLeft.Instance.IncrementOfXOperations(TimeSpan.FromMilliseconds(diffTime.ElapsedMilliseconds).Seconds, 1);
+                TimeLeft.Instance.CalcAndShowTimeLeft(countDisease + 1, TimeLeft.Instance.operationsToDo);
+
+                countDisease++;
+            }
+
+                    Console.WriteLine("Compute_TF_IDF_Terms_ToAllDiseaseData finished");
         }
 
-        static void UpdateIDFs(RelatedEntity phenotype, int totalNumberOfDisease, int NbDisease_i, double SumOfMinMaxNorm_i)
+        static void UpdateIDFs(RelatedEntity phenotype, int totalNumberOfDisease, int NbDisease_i, double TotalOfSumMinMaxNorm, double SumOfMinMaxNorm_i)
         {
             //IDF UNARY
             phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Unary).FirstOrDefault().Value = 1.0;
@@ -425,15 +446,15 @@ namespace CrawlerOrphanet
 
             //Inverse_SumOfRawCount_i
             phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Inverse_SumOfMinMaxNorm_i).FirstOrDefault().Value =
-                1.0 / (double)SumOfMinMaxNorm_i;
+                TotalOfSumMinMaxNorm / (double)SumOfMinMaxNorm_i;
 
             //IDF_Classic_SumOfRawCount_i
             phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Classic_SumOfMinMaxNorm_i).FirstOrDefault().Value =
-                Math.Log10(1.0 / (double)SumOfMinMaxNorm_i);
+                Math.Log10(TotalOfSumMinMaxNorm / (double)SumOfMinMaxNorm_i);
 
             //IDF_Smooth_SumOfRawCount_i
             phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.IDF_Smooth_SumOfMinMaxNorm_i).FirstOrDefault().Value =
-                Math.Log10(1.0 + (1.0 / (double)SumOfMinMaxNorm_i));
+                Math.Log10(1.0 + (TotalOfSumMinMaxNorm / (double)SumOfMinMaxNorm_i));
 
             //Prob_IDF_SumOfRawCount_i
             //phenotype.IDFs.Where(IDF => IDF.IDFType == IDFType.Prob_IDF_SumOfRawCount_i).FirstOrDefault().Value =
