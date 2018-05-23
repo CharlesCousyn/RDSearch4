@@ -10,6 +10,7 @@ using System.Diagnostics;
 using ConfigurationJSON;
 using Evaluation;
 using System.IO;
+using Evaluation.entities;
 
 namespace CrawlerOrphanet
 {
@@ -37,8 +38,8 @@ namespace CrawlerOrphanet
             List<Disease> lst_diseases = new List<Disease>();
             using (var db = new MongoRepository.DiseaseRepository())
             {
-                lst_diseases = db.selectAll().Take(50).ToList();
-                //lst_diseases = db.selectAll();
+                //lst_diseases = db.selectAll().Take(50).ToList();
+                lst_diseases = db.selectAll();
             }
 
 
@@ -69,9 +70,9 @@ namespace CrawlerOrphanet
 
 
             //Retrieving related entities by disease AND TextMine
-            
+            /*
             TextMiningEngine textMiningEngine = new TextMiningEngine();
-            RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);
+            RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);*/
             //RecupLinkedDiseasesAndTextMine(lst_diseases, textMiningEngine);
             //RecupDrugsAndTextMine(lst_diseases, textMiningEngine);
 
@@ -91,8 +92,15 @@ namespace CrawlerOrphanet
             if (PredictionData != null && RealData != null)
             {
                 Console.WriteLine("Evaluation....");
-                Evaluator.WriteMetaResultsJSONFile(
-                    Evaluator.MetaEvaluate(PredictionData, RealData, Evaluation.entities.Criterion.MeanRankRealPositives));
+
+                //Testing all combinaisons
+                MetaResults metaResults = Evaluator.MetaEvaluate(PredictionData, RealData, Evaluation.entities.Criterion.MeanRankRealPositives);
+                Evaluator.WriteMetaResultsJSONFile(metaResults);
+
+                //Having best combinaison and evaluate with it
+                Tuple<TFType, IDFType> tupleToTest = new Tuple<TFType, IDFType>(metaResults.bestInfos.TFType, metaResults.bestInfos.IDFType);
+                Results resultsOfBestCombinaison = Evaluator.Evaluate(PredictionData, RealData, tupleToTest);
+                Evaluator.WriteResultsJSONFile(resultsOfBestCombinaison);
 
                 Console.WriteLine("Evaluation finished!");
             }
