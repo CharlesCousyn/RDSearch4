@@ -175,13 +175,17 @@ namespace Evaluation
             //Compute MeanRank general
             double MeanRankRealPositiveGeneral = 0.0;//MeanRank RealPhenotype general
 
-            //Filter PerDisease where MeanRankRealPositives = 0.0
-            List<PerDisease> perdiseasesFiltered = results.perDisease.Where(pd => pd.MeanRankRealPositives != 0.0).ToList();
-            MeanRankRealPositiveGeneral = perdiseasesFiltered.Average(pd => pd.MeanRankRealPositives);
-
             //Compute standard deviation
             double StandardDeviationRankRealPositivesGeneral = 0.0;
-            StandardDeviationRankRealPositivesGeneral =
+
+            //Filter PerDisease where MeanRankRealPositives = 0.0
+            List<PerDisease> perdiseasesFiltered = results.perDisease.Where(pd => pd.MeanRankRealPositives != 0.0).ToList();
+
+            if (perdiseasesFiltered.Count != 0)
+            {
+                MeanRankRealPositiveGeneral = perdiseasesFiltered.Average(pd => pd.MeanRankRealPositives);
+
+                StandardDeviationRankRealPositivesGeneral =
                 Math.Sqrt
                 (
                     perdiseasesFiltered.Average
@@ -189,6 +193,8 @@ namespace Evaluation
                         pd => Math.Pow(pd.MeanRankRealPositives - MeanRankRealPositiveGeneral, 2)
                     )
                 );
+            }
+            
 
 
             //Compute MeanNumberOfRelatedEntitiesFound
