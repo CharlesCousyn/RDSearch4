@@ -25,13 +25,15 @@ namespace CrawlerOrphanet
             var path = Environment.GetEnvironmentVariable("RD_AGGREGATOR_SETTINGS");
             ConfigurationManager.Instance.Init(path);
 
-            //TESTED AND DONE
-
-            //Update Orphanet (diseases/real datasets)
+            //Obtain all symptoms/phenotypes
+            PhenotypeEngine phenotypeEngine = new PhenotypeEngine();
+            phenotypeEngine.GetSymptomsList();
             /*
-            OrphaEngine orphaEngine = new OrphaEngine();
-            orphaEngine.Start();
-            */
+            //TESTED AND DONE
+            //Update Orphanet (diseases/real datasets)
+            OrphaEngine orphaEngine = new OrphaEngine(phenotypeEngine);
+            orphaEngine.Start();*/
+            
 
 
             //Retrieving diseases from DB
@@ -71,12 +73,12 @@ namespace CrawlerOrphanet
 
             //Retrieving related entities by disease AND TextMine
             /*
-            TextMiningEngine textMiningEngine = new TextMiningEngine();
+            TextMiningEngine textMiningEngine = new TextMiningEngine(phenotypeEngine);
             RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);*/
             //RecupLinkedDiseasesAndTextMine(lst_diseases, textMiningEngine);
             //RecupDrugsAndTextMine(lst_diseases, textMiningEngine);
 
-
+            
             //Retrieving PredictionData and RealData from DB (DiseasesData with type Symptom)
             DiseasesData PredictionData = null;
             DiseasesData RealData = null;
@@ -99,8 +101,14 @@ namespace CrawlerOrphanet
 
                 //Having best combinaison and evaluate with it
                 Tuple<TFType, IDFType> tupleToTest = new Tuple<TFType, IDFType>(metaResults.bestInfos.TFType, metaResults.bestInfos.IDFType);
+
+                //Evaluate basically
                 Results resultsOfBestCombinaison = Evaluator.Evaluate(PredictionData, RealData, tupleToTest);
                 Evaluator.WriteResultsJSONFile(resultsOfBestCombinaison);
+
+                //Evaluate best combinaison with threshold search
+                MetaResultsWeight metaResultsWeight = Evaluator.MetaWeightEvaluate(PredictionData, RealData, tupleToTest, 0.05, Evaluation.entities.Criterion.F_Score);
+                Evaluator.WriteMetaResultsWeightJSONFile(metaResultsWeight);
 
                 Console.WriteLine("Evaluation finished!");
             }

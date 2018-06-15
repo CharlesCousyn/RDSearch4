@@ -136,6 +136,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="engines\OrphaEngine.cs" />
+    <Compile Include="engines\PhenotypeEngine.cs" />
     <Compile Include="engines\PubmedEngine.cs" />
     <Compile Include="engines\TextMiningEngine.cs" />
     <Compile Include="Program.cs" />

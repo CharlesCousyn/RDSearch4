@@ -12,7 +12,8 @@ namespace Evaluation
     public class Evaluator
     {
         public static Results Evaluate(DiseasesData PredictionData, DiseasesData RealData,
-            Tuple<TFType, IDFType> WeightCombinaison)
+            Tuple<TFType, IDFType> WeightCombinaison,
+            double threshold = -1.0)
         {
 
             //Object to write in JSON
@@ -64,18 +65,20 @@ namespace Evaluation
 
                         RealWeightOfPhenotypes.Add(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j], realWeight);
 
-                        //if (threshold == 0.0 || PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Weight >= threshold)
-                        //Is my predicted related entity is present in the real data?
-                        if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
+                        if (threshold == -1.0 || realWeight >= threshold)
                         {
-                            RP++;
-                            RP_Disease++;
-                            RealPhenotypes.Add(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j]);
-                        }
-                        else
-                        {
-                            FP++;
-                            FP_Disease++;
+                            //Is my predicted related entity is present in the real data?
+                            if (RelatedEntitiesNamesReal.IndexOf(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j].Name) != -1)
+                            {
+                                RP++;
+                                RP_Disease++;
+                                RealPhenotypes.Add(PredictionDiseaseData.RelatedEntities.RelatedEntitiesList[j]);
+                            }
+                            else
+                            {
+                                FP++;
+                                FP_Disease++;
+                            }
                         }
                     }
 
@@ -212,6 +215,7 @@ namespace Evaluation
                 StandardDeviationNumberOfRelatedEntitiesFound,
                 WeightCombinaison.Item1,
                 WeightCombinaison.Item2,
+                threshold,
                 RP, 
                 FP, 
                 FN,  
@@ -425,6 +429,25 @@ namespace Evaluation
             File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
         }
 
+        public static void WriteMetaResultsWeightJSONFile(
+        MetaResultsWeight metaResultsWeight,
+        string wantedFileName = "")
+        {
+            string output = JsonConvert.SerializeObject(metaResultsWeight, Formatting.Indented);
+
+            //Choose the name
+            string fileName = "";
+            if (wantedFileName != "")
+            {
+                fileName = wantedFileName;
+            }
+            else
+            {
+                fileName = $"metaResultsWeight_{metaResultsWeight.bestThreshold.TimeStamp.ToString("yyyy-MM-dd_HH-mm-ss")}.json";
+            }
+            File.WriteAllText(ConfigurationManager.Instance.config.ResultsFolder + fileName, output);
+        }
+
         public static void WriteListOfMetaResultsJSONFile( List<MetaResults> listMetaResults)
         {
             foreach (var metaResults in listMetaResults)
@@ -464,6 +487,99 @@ namespace Evaluation
                 }
             }
             return listResults;
+        }
+
+        public static MetaResultsWeight MetaWeightEvaluate(
+            DiseasesData PredictionData, 
+            DiseasesData RealData,
+            Tuple<TFType, IDFType> tuple,
+            double pas,
+            Criterion criterion)
+        {
+            //Create MetaResult
+            MetaResultsWeight metaResultsWeight = new MetaResultsWeight();
+
+            //Compute all results and put them in metaResults
+            List<Results> listResults = new List<Results>();
+
+            for(double i = 0.0; i < 5.0; i += pas)
+            {
+                Results currentRes = Evaluate(PredictionData, RealData, tuple, i);
+                listResults.Add(currentRes);
+                metaResultsWeight.perThreshold.Add(
+                    new PerThreshold(
+                        currentRes.general.TimeStamp,
+                        currentRes.general.NumberOfDiseasesWithKnownPhenotypes,
+                        currentRes.general.NumberOfDiseasesWithPublicationsInPredictionData,
+                        currentRes.general.NumberOfDiseasesEvaluatedForReal,
+                        currentRes.general.Type,
+                        currentRes.general.MeanNumberOfRelatedEntitiesFound,
+                        currentRes.general.StandardDeviationNumberOfRelatedEntitiesFound,
+                        currentRes.general.TFType,
+                        currentRes.general.IDFType,
+                        currentRes.general.WeightThreshold,
+                        currentRes.general.RealPositives,
+                        currentRes.general.FalsePositives,
+                        currentRes.general.FalseNegatives,
+                        currentRes.general.Precision,
+                        currentRes.general.Recall,
+                        currentRes.general.F_Score,
+                        currentRes.general.MeanRankRealPositives,
+                        currentRes.general.StandardDeviationRankRealPositivesGeneral,
+                        criterion
+                        ));
+            }
+
+            //Find best results and sort by perCombinaison
+            Results Best_Result;
+            switch (criterion)
+            {
+                case Criterion.MeanRankRealPositives:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.MeanRankRealPositives < savedRes.general.MeanRankRealPositives ? currentRes : savedRes);
+                    metaResultsWeight.perThreshold = metaResultsWeight.perThreshold.OrderBy(pc => pc.MeanRankRealPositives).ToList();
+                    break;
+                case Criterion.F_Score:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.F_Score > savedRes.general.F_Score ? currentRes : savedRes);
+                    metaResultsWeight.perThreshold = metaResultsWeight.perThreshold.OrderByDescending(pc => pc.F_Score).ToList();
+                    break;
+                case Criterion.Precision:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.Precision > savedRes.general.Precision ? currentRes : savedRes);
+                    metaResultsWeight.perThreshold = metaResultsWeight.perThreshold.OrderByDescending(pc => pc.Precision).ToList();
+                    break;
+                case Criterion.Recall:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.Recall > savedRes.general.Recall ? currentRes : savedRes);
+                    metaResultsWeight.perThreshold = metaResultsWeight.perThreshold.OrderByDescending(pc => pc.Recall).ToList();
+                    break;
+                default:
+                    Best_Result = listResults.Aggregate((savedRes, currentRes) => currentRes.general.MeanRankRealPositives < savedRes.general.MeanRankRealPositives ? currentRes : savedRes);
+                    metaResultsWeight.perThreshold = metaResultsWeight.perThreshold.OrderBy(pc => pc.MeanRankRealPositives).ToList();
+                    break;
+            }
+
+            //Complete metaResults
+            metaResultsWeight.bestThreshold = new BestThreshold(
+                    Best_Result.general.TimeStamp,
+                        Best_Result.general.NumberOfDiseasesWithKnownPhenotypes,
+                        Best_Result.general.NumberOfDiseasesWithPublicationsInPredictionData,
+                        Best_Result.general.NumberOfDiseasesEvaluatedForReal,
+                        Best_Result.general.Type,
+                        Best_Result.general.MeanNumberOfRelatedEntitiesFound,
+                        Best_Result.general.StandardDeviationNumberOfRelatedEntitiesFound,
+                        Best_Result.general.TFType,
+                        Best_Result.general.IDFType,
+                        Best_Result.general.WeightThreshold,
+                        Best_Result.general.RealPositives,
+                        Best_Result.general.FalsePositives,
+                        Best_Result.general.FalseNegatives,
+                        Best_Result.general.Precision,
+                        Best_Result.general.Recall,
+                        Best_Result.general.F_Score,
+                        Best_Result.general.MeanRankRealPositives,
+                        Best_Result.general.StandardDeviationRankRealPositivesGeneral,
+                        criterion
+                );
+
+            return metaResultsWeight;
         }
     }
 }

@@ -29,12 +29,16 @@ namespace CrawlerOrphanet
         private ApproxDictionaryChunker chunker;
         private Chunker chunkerHMM;
 
-        public TextMiningEngine()
+        public TextMiningEngine(PhenotypeEngine phenotypeEngine)
         {
             Console.WriteLine("TextMiningEngine initialization ...");
             client = new HttpClient();
-            symptomsList = new List<Symptom>();
-            GetSymptomsList();
+
+            symptomsList = phenotypeEngine.SymptomsList;
+            //////////////////
+            //symptomsList = new List<Symptom>();
+            //GetSymptomsList();
+            ///////////////
             //getSymptomsListBeta();
 
             //Preparing dictionary

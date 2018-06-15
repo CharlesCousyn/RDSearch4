@@ -13,11 +13,13 @@ using MongoRepository.entities;
 using ConfigurationJSON;
 using System.Net;
 using System.Net.Http;
+using CrawlerOrphanet;
 
 namespace WebCrawler
 {
     public class OrphaEngine
     {
+        private List<Symptom> symptomsList;
         public OrphaData Datas { get; set; }
 
         public ConcurrentBag<Disease> Diseases { get; set; }
@@ -28,10 +30,11 @@ namespace WebCrawler
 
         private HttpClient client;
 
-        public OrphaEngine()
+        public OrphaEngine(PhenotypeEngine phenotypeEngine)
         {
             Diseases = new ConcurrentBag<Disease>();
             client = new HttpClient();
+            symptomsList = phenotypeEngine.SymptomsList;
         }
 
         public void Start()
@@ -384,6 +387,11 @@ namespace WebCrawler
 
                     RelatedEntity symptom = new RelatedEntity(type.Symptom, symptomName, weight);
 
+                    //Adding synonyms
+                    List<string> synonyms = new List<string>();
+                    synonyms = symptomsList.Where(s => s.Name == symptomName).FirstOrDefault()?.Synonyms;
+                    symptom.Synonyms = synonyms;
+
                     myDiseaseData.RelatedEntities.RelatedEntitiesList.Add(symptom);
                 }
 
@@ -399,7 +407,41 @@ namespace WebCrawler
                 realDataRepository.removeAll();
 
                 //We stock the retrieved diseases in DB
-                realDataRepository.insert(RealData);
+                //realDataRepository.insert(RealData);
+
+                Console.WriteLine("InsertRealDataInDB start...");
+                List<DiseaseData> listDiseaseData = RealData.DiseaseDataList;
+                if (listDiseaseData.Count != 0)
+                {
+                    try
+                    {
+                        //Cut in listDiseaseData.Count parts
+                        int numberOfDocument = listDiseaseData.Count;
+
+                        for (int i = 0; i < numberOfDocument; i++)
+                        {
+                            realDataRepository.insert(
+                            new DiseasesData(
+                                type.Symptom,
+                                listDiseaseData
+                                .Skip(i)
+                                .Take(1)
+                                .ToList()
+                                )
+                            );
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        Console.WriteLine("Error on insertion of RealData");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("0 realData to insert!");
+                }
+                Console.WriteLine("InsertRealDataInDB finished!");
             }
         }
 

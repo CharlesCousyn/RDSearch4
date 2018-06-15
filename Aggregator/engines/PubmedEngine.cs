@@ -48,7 +48,8 @@ namespace WebCrawler
                 $"&retmax={1000}" +
                 $"{ConfigurationManager.Instance.config.ParametersAPI}";
 
-            defaultParameters = new Dictionary<string, string>{
+            defaultParameters = new Dictionary<string, string>
+            {
                     { "db", "pmc" },
                     { "retstart", "0" },
                     { "retmax", "500" },

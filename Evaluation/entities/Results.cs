@@ -37,6 +37,7 @@ namespace Evaluation
         public TFType TFType { get; set; }
         [JsonConverter(typeof(StringEnumConverter))]
         public IDFType IDFType { get; set; }
+        public double WeightThreshold { get; set; }
         public int RealPositives { get; set; }
         public int FalsePositives { get; set; }
         public int FalseNegatives { get; set; }
@@ -50,7 +51,8 @@ namespace Evaluation
             int NumberOfDiseasesWithKnownPhenotypesP, 
             int NumberOfDiseasesWithPublicationsInPredictionDataP,
             int NumberOfDiseasesEvaluatedForRealP,
-            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, double StandardDeviationNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
+            type TypeP, double MeanNumberOfRelatedEntitiesFoundP, double StandardDeviationNumberOfRelatedEntitiesFoundP, TFType TFTypeP, IDFType IDFTypeP, double WeightThresholdP,
+            int RealPositivesP, int FalsePositivesP, int FalseNegativesP, 
             double PrecisionP, double RecallP, double F_ScoreP, double MeanRankRealPositivesP, double StandardDeviationRankRealPositivesGeneralP)
         {
             TimeStamp = TimeStampP;
@@ -62,6 +64,7 @@ namespace Evaluation
             StandardDeviationNumberOfRelatedEntitiesFound = StandardDeviationNumberOfRelatedEntitiesFoundP;
             TFType = TFTypeP;
             IDFType = IDFTypeP;
+            WeightThreshold = WeightThresholdP;
             RealPositives = RealPositivesP;
             FalsePositives = FalsePositivesP;
             FalseNegatives = FalseNegativesP;
