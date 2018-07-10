@@ -508,7 +508,7 @@ namespace Evaluation
             //Compute all results and put them in metaResults
             List<Results> listResults = new List<Results>();
 
-            for(double i = 0.0; i < 3.0; i += pas)
+            for(double i = 0.0; i < 2.5; i += pas)
             {
                 Results currentRes = Evaluate(PredictionData, RealData, tuple, i);
                 listResults.Add(currentRes);

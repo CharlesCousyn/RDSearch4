@@ -107,7 +107,7 @@ namespace CrawlerOrphanet
                 Evaluator.WriteResultsJSONFile(resultsOfBestCombinaison);
 
                 //Evaluate best combinaison with threshold search
-                MetaResultsWeight metaResultsWeight = Evaluator.MetaWeightEvaluate(PredictionData, RealData, tupleToTest, 0.025, Evaluation.entities.Criterion.F_Score);
+                MetaResultsWeight metaResultsWeight = Evaluator.MetaWeightEvaluate(PredictionData, RealData, tupleToTest, 0.01, Evaluation.entities.Criterion.F_Score);
                 Evaluator.WriteMetaResultsWeightJSONFile(metaResultsWeight);
 
                 Console.WriteLine("Evaluation finished!");
