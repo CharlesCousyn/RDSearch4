@@ -28,10 +28,12 @@ namespace CrawlerOrphanet
         private HttpClient client;
         private ApproxDictionaryChunker chunker;
         private Chunker chunkerHMM;
+        private System.Text.StringBuilder stringBuilder;
 
         public TextMiningEngine(PhenotypeEngine phenotypeEngine)
         {
             Console.WriteLine("TextMiningEngine initialization ...");
+            stringBuilder = new System.Text.StringBuilder();
             client = new HttpClient();
 
             symptomsList = phenotypeEngine.SymptomsList;
@@ -91,7 +93,14 @@ namespace CrawlerOrphanet
 
             foreach (Publication publication in publications)
             {
-                string text = publication.title + " " + publication.abstractText + " "+publication.fullText;
+                stringBuilder.Clear();
+                stringBuilder.Append(publication.title);
+                stringBuilder.Append(" ");
+                stringBuilder.Append(publication.abstractText);
+                stringBuilder.Append(" ");
+                stringBuilder.Append(publication.fullText);
+
+                string text = stringBuilder.ToString();
 
                 //Text preprocessing
                 text = text.ToLower();
