@@ -17,6 +17,8 @@ namespace ConfigurationJSON
         public int BatchSizeDiseases { get; set; }
         public int BatchSizePMC { get; set; }
         public int BatchSizeTextMining { get; set; }
-        public int MaxNumberSymptoms { get; set; }
+        public double Threshold { get; set; }
+        public string TFTypeOfBestCombination { get; set; }
+        public string IDFTypeOfBestCombination { get; set; }
     }
 }

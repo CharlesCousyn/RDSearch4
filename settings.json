@@ -10,5 +10,7 @@
   "BatchSizeDiseases": 150,
   "BatchSizePMC": 1000,
   "BatchSizeTextMining": 20,
-  "MaxNumberSymptoms": 100
+  "Threshold": 0.1717,
+  "TFTypeOfBestCombination": "MinMaxNorm",
+  "IDFTypeOfBestCombination": "IDF_Smooth_NbDisease_i"
 }

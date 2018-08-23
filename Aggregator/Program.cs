@@ -75,8 +75,6 @@ namespace CrawlerOrphanet
             /*
             TextMiningEngine textMiningEngine = new TextMiningEngine(phenotypeEngine);
             RecupSymptomsAndTextMine(lst_diseases, textMiningEngine);*/
-            //RecupLinkedDiseasesAndTextMine(lst_diseases, textMiningEngine);
-            //RecupDrugsAndTextMine(lst_diseases, textMiningEngine);
 
             
             //Retrieving PredictionData and RealData from DB (DiseasesData with type Symptom)
@@ -158,7 +156,7 @@ namespace CrawlerOrphanet
                 MinMaxNormalization(PredictionData, 0.0, 1.0, TFType.RawCount, TFType.MinMaxNorm);
                 Compute_TF_IDF_Terms_ToAllDiseaseData(PredictionData);
                 OrderDiseaseDatas(PredictionData);
-                //KeepTheBest(PredictionData);
+                //FilterWithCombinaisonAndThreshold(PredictionData); //Combination and threshold in config file
 
                 //Insert in DB
                 InsertPredictionInDB(PredictionData.DiseaseDataList, predictionDataRepository);
@@ -536,7 +534,7 @@ namespace CrawlerOrphanet
             Console.WriteLine("OrderDiseaseDatas finished");
         }
 
-        static void KeepTheBest(DiseasesData PredictionData)
+        static void FilterWithCombinaisonAndThreshold(DiseasesData PredictionData)
         {
             foreach (var diseasedata in PredictionData.DiseaseDataList)
             {
@@ -546,10 +544,29 @@ namespace CrawlerOrphanet
                     //Take only a the best symptoms (see config file)
                     diseasedata.RelatedEntities.RelatedEntitiesList =
                         diseasedata.RelatedEntities.RelatedEntitiesList
-                        .OrderByDescending(x => x.TermFrequencies.Where(tf => tf.TFType == TFType.RawCount).FirstOrDefault().Value)
-                        .Take(ConfigurationManager.Instance.config.MaxNumberSymptoms)
+                        .Where(x => FilterFunctionForOneRelatedEntities(x))
                         .ToList();
                 }
+            }
+        }
+        
+        //Read the configuration for filtering
+        static private bool FilterFunctionForOneRelatedEntities(RelatedEntity x)
+        {
+            if (ConfigurationManager.Instance.config.TFTypeOfBestCombination == "NULL" 
+                || ConfigurationManager.Instance.config.IDFTypeOfBestCombination == "NULL")
+            {
+                return true;
+            }
+            else
+            {
+                return x.TermFrequencies
+                .Where(tf => tf.TFType == (TFType)Enum.Parse(typeof(TFType), ConfigurationManager.Instance.config.TFTypeOfBestCombination))
+                .FirstOrDefault().Value
+                                  *
+                                    x.IDFs.Where(idf => idf.IDFType == (IDFType)Enum.Parse(typeof(IDFType), ConfigurationManager.Instance.config.IDFTypeOfBestCombination))
+                                    .FirstOrDefault().Value
+                                    >= ConfigurationManager.Instance.config.Threshold;
             }
         }
 
